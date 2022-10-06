@@ -1,0 +1,10 @@
+[package]
+name = "liyu"
+version = "0.0.0"
+edition = "2021"
+authors = ["A person whose legal name hashes under SHA256 to d6c7f58386d5193b45263d65c281ef9c992d7955e7b0da6a7c267bf000e8e72d"]
+description = "A chess engine for the game Xiangqi. Currently in development."
+
+#https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
