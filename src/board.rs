@@ -47,10 +47,40 @@ impl BoardState {
 
         return ret;
     }
+
+    fn skipWhitespace(iterator : &mut core::str::Chars) -> Option<char>{
+        loop {
+            let cara = iterator.next();
+            if cara.is_none() {
+                return cara;
+            }
+            if !cara.unwrap().is_whitespace() {
+                return cara;
+            }
+        }
+    }
+    
+    fn readNumber(iterator : &mut core::str::Chars) -> i32{
+        let mut str : String = Default::default();
+        loop {
+            let cara = iterator.next();
+            if cara.is_none() {
+                break;
+            }
+            if cara.unwrap().is_digit(10) {
+                str.push(cara.unwrap());
+            }
+        }
+        let ret = str.parse::<i32>();
+        return ret.unwrap_or(1);
+    }
+
     pub fn loadFEN(&mut self, fenStr : &str) {
         let mut x : usize = 0;
         let mut y : usize = 9;
-        for cara in fenStr.chars() {
+        // Doing all this so that we can resume iteration under the metadata for loop later
+        let mut iterator = fenStr.chars().into_iter();
+        for cara in iterator.by_ref() { // First read in the board
             if cara == '/' {
                 y -= 1;
                 x = 0;
@@ -59,6 +89,9 @@ impl BoardState {
             if cara.is_numeric() {
                 x += cara.to_digit(10).unwrap_or(1) as usize;
                 continue;
+            }
+            if cara.is_whitespace() {
+                break;
             }
             match cara {
                 'p' => {
@@ -109,6 +142,45 @@ impl BoardState {
             }
             x+=1;
         }
+        if y != 0 || x != 9 {
+            print!("Warning: FEN was incomplete.");
+            return;
+        }
+        println!("The remaining characters:");
+        
+        let whoseMove = BoardState::skipWhitespace(&mut iterator);
+        if whoseMove.is_none() {
+            println!("Invalid FEN: missing metadata for whose turn it is");
+            return;
+        } 
+        let cara = whoseMove.unwrap();
+        match(cara) {
+            'w' | 'W' | 'r' | 'R' => {
+                self.isRedTurn = true;
+            }
+            'b' | 'B' => {
+                self.isRedTurn = false;
+            }
+            _ => {
+                println!("Invalid FEN: move marker not recognized: {}",cara);
+            }
+        }
+        BoardState::skipWhitespace(&mut iterator); // -
+        BoardState::skipWhitespace(&mut iterator); // -
+        BoardState::readNumber(&mut iterator); // 0
+        self.plyNumber = BoardState::readNumber(&mut iterator);
+        if !self.isRedTurn { // black's move, so we have 1 extra ply :)
+            self.plyNumber += 1;
+        }
+
+    }
+
+    /// Outputs a FEN which describes the board position.
+    pub fn writeFEN(&self) -> String {
+        let mut fenString : String = Default::default();
+
+
+        return fenString;
     }
 
     pub fn Display(&self) {
