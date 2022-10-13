@@ -1,5 +1,4 @@
-//! Is all the information necessary to define a particular state of the board.
-
+/// Is all the information necessary to define a particular state of the board.
 pub struct BoardState
 {
     // first dimension is x (a to i), second is y (1 to 10)
@@ -27,7 +26,14 @@ pub struct Piece
     isRed : bool
 }
 
-//
+/// the Y index for where black's back rank is.
+const BLACK_ROW : usize = 9;
+/// the Y index for where red's back rank is.
+const RED_ROW : usize = 0;
+/// the Y index for where black's river starts.
+const BLACK_RIVER : usize = 5;
+/// the Y index for where red's river starts.
+const RED_RIVER : usize = 4;
 
 impl BoardState {
     pub fn new() -> Self {
@@ -107,7 +113,7 @@ impl BoardState {
 
     pub fn Display(&self) {
         print!("Position value: {}\n",self.getValue());
-        for arr in self.squares.iter() {
+        for arr in self.squares.iter().rev() {
             for tile in arr {
                 if tile.piece.is_none() {
                     print!("-");
@@ -164,9 +170,62 @@ impl BoardState {
         }
         return sum;
     }
+
+    fn IsSameColour(&self, x: usize, y : usize, isRed : bool) -> bool {
+        return !self.squares[y][x].piece.is_none() && self.squares[y][x].piece.as_ref().unwrap().isRed == isRed;
+    }
+
+    fn TryMove(&self, x: usize, y: usize, isRed : bool, flagBoard : &mut [[bool;9];10] ) {
+        if(!self.IsSameColour(x, y, isRed)) {
+            flagBoard[y][x] = true;
+        }
+    }
+
+    pub fn getMoves(&self, x : usize, y : usize) -> [[bool;9];10] {
+        let mut flagBoard :  [[bool;9];10] = Default::default();
+        let piece : &Piece = self.squares[y][x].piece.as_ref().unwrap();
+        match piece.pieceType { 
+            PieceType::Pawn => {
+                if piece.isRed {
+                    //forward
+                    if y != BLACK_ROW {
+                        self.TryMove(x, y+1, piece.isRed, &mut flagBoard);
+                    }
+                    //sideways
+                    if y >= BLACK_RIVER {
+                        if x > 0 {
+                            self.TryMove(x-1, y, piece.isRed, &mut flagBoard);
+                        }
+                        if x < 8 {
+                            self.TryMove(x+1, y, piece.isRed, &mut flagBoard);
+                        }
+                    }
+
+                } else {
+                    //forward
+                    if y != RED_ROW {
+                        self.TryMove(x, y-1, piece.isRed, &mut flagBoard);
+                    }
+                    //sideways
+                    if y <= RED_RIVER {
+                        if x > 0 {
+                            self.TryMove(x-1, y, piece.isRed, &mut flagBoard);
+                        }
+                        if x < 8 {
+                            self.TryMove(x+1, y, piece.isRed, &mut flagBoard);
+                        }
+                    }
+                }
+            }
+            _ => {} // do nothing :#
+        }
+
+        return flagBoard;
+    }
 }
 
 impl Tile {
+    #[allow(dead_code)] // things need constructors, Rust, god
     pub fn new() -> Self {
         return Default::default();
     }

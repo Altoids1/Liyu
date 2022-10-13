@@ -1,4 +1,5 @@
 #![allow(non_snake_case)] //stfu Rust jeezus
+#![allow(dead_code)] // Remove this when we're mature :) 
 
 use std::env;
 mod board;
