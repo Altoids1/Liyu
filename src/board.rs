@@ -122,26 +122,45 @@ impl BoardState {
     /// Positive value means Red is winning, negative value means Black is winning. Forced draws are 0.
     pub fn getValue(&self) -> f32 {
         let mut sum : f32 = 0f32;
+        let mut foundRedKing : bool = false;
+        let mut foundBlackKing : bool = false;
         for arr in self.squares.iter() { // TODO: Make this more complicated than just piece value summing
             for tile in arr {
                 if tile.piece.is_none() {
                     continue;
                 }
                 let piece : &Piece = &tile.piece.as_ref().unwrap();
-                let mut ourVal: f32 = match(piece.pieceType) {
+                let mut ourVal: f32 = match piece.pieceType {
                     PieceType::Pawn => 1f32, // TODO: Increase value after they cross the river
                     PieceType::Advisor => 2f32,
                     PieceType::Elephant => 2f32,
                     PieceType::Horse => 4f32,
                     PieceType::Cannon => 4.5f32,
                     PieceType::Rook => 9f32,
-                    PieceType::King => 0f32 // We treat this differently :3
+                    PieceType::King => { // We treat this differently :3
+                        if piece.isRed {
+                            foundRedKing = true;
+                            0f32
+                        } else {
+                            foundBlackKing = true;
+                            0f32
+                        }
+                    }
                 };
                 if !piece.isRed {
                     ourVal *= -1f32;
                 }
                 sum += ourVal;
             }
+        }
+        if !foundBlackKing { // red wins innit
+            if !foundRedKing { // wtf
+                debug_assert!(false);
+            }
+            sum = f32::INFINITY;
+        }
+        if !foundRedKing { // black wins innit
+            sum = f32::NEG_INFINITY;
         }
         return sum;
     }
