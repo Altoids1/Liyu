@@ -1,4 +1,7 @@
-use std::{char::from_digit, collections::HashMap, default,fmt};
+use std::{char::from_digit,fmt};
+pub mod piece;
+use piece::Piece;
+use piece::PieceType;
 
 /// Is all the information necessary to define a particular state of the board.
 pub struct BoardState
@@ -12,23 +15,6 @@ pub struct Tile
 {
     piece : Option<Piece>
 }
-
-enum PieceType {
-    Pawn,
-    Advisor,
-    Elephant,
-    Horse,
-    Cannon,
-    Rook,
-    King
-}
-
-pub struct Piece
-{
-    pieceType : PieceType,
-    isRed : bool
-}
-
 
 /// the Y index for where black's back rank is.
 const BLACK_ROW : usize = 9;
@@ -98,50 +84,10 @@ impl BoardState {
                 break;
             }
             match cara {
-                'p' => {
-                    _ = self.squares[y][x].piece.insert(Piece {pieceType : PieceType::Pawn, isRed : false});
+                'p' | 'P' | 'a' | 'A' | 'e' | 'E' | 'h' | 'H' | 'c' | 'C' | 'r' | 'R' | 'k' | 'K'  => {
+                    _ = self.squares[y][x].piece.insert(Piece::new(cara));
                 },
-                'P' => {
-                    _ = self.squares[y][x].piece.insert(Piece {pieceType : PieceType::Pawn, isRed : true});
-                },
-                'a' => {
-                    _ = self.squares[y][x].piece.insert(Piece {pieceType : PieceType::Advisor, isRed : false});
-                },
-                'A' => {
-                    _ = self.squares[y][x].piece.insert(Piece {pieceType : PieceType::Advisor, isRed : true});
-                },
-                'e' => {
-                    _ = self.squares[y][x].piece.insert(Piece {pieceType : PieceType::Elephant, isRed : false});
-                },
-                'E' => {
-                    _ = self.squares[y][x].piece.insert(Piece {pieceType : PieceType::Elephant, isRed : true});
-                },
-                'h' => {
-                    _ = self.squares[y][x].piece.insert(Piece {pieceType : PieceType::Horse, isRed : false});
-                },
-                'H' => {
-                    _ = self.squares[y][x].piece.insert(Piece {pieceType : PieceType::Horse, isRed : true});
-                },
-                'c' => {
-                    _ = self.squares[y][x].piece.insert(Piece {pieceType : PieceType::Cannon, isRed : false});
-                },
-                'C' => {
-                    _ = self.squares[y][x].piece.insert(Piece {pieceType : PieceType::Cannon, isRed : true});
-                },
-                'r' => {
-                    _ = self.squares[y][x].piece.insert(Piece {pieceType : PieceType::Rook, isRed : false});
-                },
-                'R' => {
-                    _ = self.squares[y][x].piece.insert(Piece {pieceType : PieceType::Rook, isRed : true});
-                },
-                'k' => {
-                    _ = self.squares[y][x].piece.insert(Piece {pieceType : PieceType::King, isRed : false});
-                },
-                'K' => {
-                    _ = self.squares[y][x].piece.insert(Piece {pieceType : PieceType::King, isRed : true});
-                },
-
-                ' ' => break, // TODO
+                ' ' => break,
                 _ => {}
             }
             x+=1;
@@ -197,19 +143,7 @@ impl BoardState {
                     number = 0;
                 }
                 let piece : &Piece = tile.piece.as_ref().unwrap();
-                let mut cara : char = match piece.pieceType {
-                    PieceType::Pawn => 'p',
-                    PieceType::Advisor => 'a',
-                    PieceType::Elephant => 'e',
-                    PieceType::Horse => 'h',
-                    PieceType::Cannon => 'c',
-                    PieceType::Rook => 'r',
-                    PieceType::King => 'k'
-                };
-                if piece.isRed { // Red is Capital!
-                    cara = cara.to_ascii_uppercase();
-                }
-                fenString.push(cara);
+                fenString.push(piece.getChar());
             }
             if number != 0 { // push the number
                 fenString.push(from_digit(number, 10).unwrap_or('1'));
@@ -572,7 +506,6 @@ impl BoardState {
                     self.TryMove(x+1, y, piece.isRed, &mut flagBoard);  
                 }
             }
-            _ => {} // do nothing :#
         }
 
         return flagBoard;
@@ -594,38 +527,10 @@ impl Default for Tile {
     }
 }
 
-impl Piece {
-    pub fn getChar(&self) -> char {
-        let mut character = match self.pieceType {
-            PieceType::Pawn => 'p',
-            PieceType::Advisor => 'a',
-            PieceType::Elephant => 'e',
-            PieceType::Horse => 'h',
-            PieceType::Cannon => 'c',
-            PieceType::Rook => 'r',
-            PieceType::King => 'k'
-        };
-        if self.isRed { // red is uppercase, I've decided (goes with how chess FEN works)
-            character = character.to_uppercase().next().unwrap_or(character);
-        }
-        return character;
-    }
-}
+
 
 impl fmt::Display for Piece {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut cara : char = match self.pieceType {
-            PieceType::Pawn => 'p',
-            PieceType::Advisor => 'a',
-            PieceType::Elephant => 'e',
-            PieceType::Horse => 'h',
-            PieceType::Cannon => 'c',
-            PieceType::Rook => 'r',
-            PieceType::King => 'k'
-        };
-        if self.isRed { // Red is Capital!
-            cara = cara.to_ascii_uppercase();
-        }
-        write!(f, "{}", cara)
+        write!(f, "{}", self.getChar())
     }
 }
