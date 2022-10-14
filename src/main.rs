@@ -1,16 +1,69 @@
 #![allow(non_snake_case)] //stfu Rust jeezus
-#![allow(dead_code)] // Remove this when we're mature :) 
+//#![allow(dead_code)] // Remove this when we're mature :) 
 
+use std::collections::VecDeque;
 use std::env;
+use std::io::{stdin, stdout, Write};
 mod board;
 mod test;
 
-fn main() { 
-    let args: Vec<String> = env::args().collect(); // First entry is always just like.. a relative path to where we are?
-    //dbg!(args);
-    println!("Liyu - Version {}",env!("CARGO_PKG_VERSION"));
+/// An error handling layer above write! that generically handles all the Result<>s floating around.
+macro_rules! say {
+    ($($y:expr),+) => {
+        let mut good = false;
+        for _attempt in 1..=10 {
+            if write!(stdout().lock(),$($y),+).is_ok() && stdout().flush().is_ok() {
+                good = true;
+                break;
+            }
+        }
+        if !good {
+            panic!("Writing failed after 10 tries");
+        }
+    }
+}
 
-    let starting_board : board::BoardState = board::BoardState::new();
-    starting_board.Display();
-    println!("FEN: {}",starting_board.writeFEN());
+fn main() { 
+    let _args: Vec<String> = env::args().collect(); // First entry is always just like.. a relative path to where we are?
+
+    println!("Liyu - Version {}",env!("CARGO_PKG_VERSION"));
+    let mut boardPosition : board::BoardState = board::BoardState::new();
+    loop {
+        say!("\n> ");
+        let mut cmdstr = String::new();
+        _ = stdin().read_line(&mut cmdstr);
+
+        let mut words = VecDeque::from_iter(cmdstr.split_ascii_whitespace());
+        if words.len() == 0 {
+            continue;
+        }
+        match words[0] {
+            "h" | "help" | "HELP" => {
+                say!("Available commands:\n");
+                say!("'fen [FenString]' - loads in a new position from a valid FEN string.\n");
+                say!("'eval' - returns the current evaluation of the position.\n");
+                say!("'display' - displays an ASCII depiction of the current board.\n");
+                say!("'quit' - exits the program.");
+            }
+            "fen" | "FEN" => {
+                words.pop_front();
+                let fenstr = words.make_contiguous().join(" ");
+                boardPosition = board::BoardState::new_from_FEN(fenstr.as_str());
+                say!("Board position now: {}",boardPosition.writeFEN());
+            }
+            "eval" | "EVAL" => {
+                say!("Current evaluation: {}",boardPosition.getValue());
+            }
+            "display" | "DISPLAY" => {
+                boardPosition.Display();
+            }
+            "quit" | "q" | "QUIT" => {
+                break;
+            }
+            _ => {
+                println!("Unrecognized command {}",words[0]);
+                continue;
+            }
+        }
+    };
 }

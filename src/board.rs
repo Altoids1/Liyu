@@ -25,15 +25,20 @@ const BLACK_RIVER : usize = 5;
 /// the Y index for where red's river starts.
 const RED_RIVER : usize = 4;
 
+pub const STARTING_POSITION_FEN : &str = "rheakaehr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RHEAKAEHR w - - 0 1";
+
 impl BoardState {
     pub fn new() -> Self {
+        return Self::new_from_FEN(STARTING_POSITION_FEN);
+    }
+    pub fn new_from_FEN(fenstr : &str) -> Self { // TODO: Find a good default argument / overloading workaround pattern for Rust
         let mut ret =  Self {
             squares : Default::default(),
             isRedTurn : true,
             plyNumber : 1
         };
 
-        ret.loadFEN("rheakaehr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RHEAKAEHR w - - 0 1");
+        ret.loadFEN(fenstr);
 
         return ret;
     }
