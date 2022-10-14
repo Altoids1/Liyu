@@ -3,6 +3,7 @@
 
 use std::env;
 mod board;
+mod test;
 
 fn main() { 
     let args: Vec<String> = env::args().collect(); // First entry is always just like.. a relative path to where we are?
