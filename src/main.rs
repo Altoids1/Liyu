@@ -11,4 +11,5 @@ fn main() {
 
     let starting_board : board::BoardState = board::BoardState::new();
     starting_board.Display();
+    println!("FEN: {}",starting_board.writeFEN());
 }

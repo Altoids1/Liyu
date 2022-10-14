@@ -1,10 +1,12 @@
+use std::char::from_digit;
+
 /// Is all the information necessary to define a particular state of the board.
 pub struct BoardState
 {
     // first dimension is x (a to i), second is y (1 to 10)
     squares : [[Tile;9];10],
     isRedTurn : bool,
-    plyNumber : i32, // One-indexed. Either player moving increments this. Odd for Red and even for Black
+    plyNumber : i32, // Zero-indexed. Either player moving increments this. Even for Red and odd for Black
 }
 pub struct Tile
 {
@@ -146,7 +148,6 @@ impl BoardState {
             print!("Warning: FEN was incomplete.");
             return;
         }
-        println!("The remaining characters:");
         
         let whoseMove = BoardState::skipWhitespace(&mut iterator);
         if whoseMove.is_none() {
@@ -154,7 +155,7 @@ impl BoardState {
             return;
         } 
         let cara = whoseMove.unwrap();
-        match(cara) {
+        match cara {
             'w' | 'W' | 'r' | 'R' => {
                 self.isRedTurn = true;
             }
@@ -168,17 +169,61 @@ impl BoardState {
         BoardState::skipWhitespace(&mut iterator); // -
         BoardState::skipWhitespace(&mut iterator); // -
         BoardState::readNumber(&mut iterator); // 0
-        self.plyNumber = BoardState::readNumber(&mut iterator);
+        self.plyNumber = (BoardState::readNumber(&mut iterator) - 1) * 2;
         if !self.isRedTurn { // black's move, so we have 1 extra ply :)
             self.plyNumber += 1;
         }
+
+        debug_assert!(self.plyNumber % 2 != (self.isRedTurn as i32)); // ply is even when it's Red's turn and odd when it's Black's
 
     }
 
     /// Outputs a FEN which describes the board position.
     pub fn writeFEN(&self) -> String {
         let mut fenString : String = Default::default();
-
+        //"rheakaehr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RHEAKAEHR w - - 0 1"
+        for (index, arr) in self.squares.iter().rev().enumerate() {
+            let mut number = 0;
+            for tile in arr {
+                if tile.piece.is_none() {
+                    number += 1;
+                    continue;
+                }
+                //past here means that there is a piece
+                if number != 0 { // first lets write the empty tiles we found earlier :)
+                    fenString.push(from_digit(number, 10).unwrap_or('1'));
+                    number = 0;
+                }
+                let piece : &Piece = tile.piece.as_ref().unwrap();
+                let mut cara : char = match piece.pieceType {
+                    PieceType::Pawn => 'p',
+                    PieceType::Advisor => 'a',
+                    PieceType::Elephant => 'e',
+                    PieceType::Horse => 'h',
+                    PieceType::Cannon => 'c',
+                    PieceType::Rook => 'r',
+                    PieceType::King => 'k'
+                };
+                if piece.isRed { // Red is Capital!
+                    cara = cara.to_ascii_uppercase();
+                }
+                fenString.push(cara);
+            }
+            if number != 0 { // push the number
+                fenString.push(from_digit(number, 10).unwrap_or('1'));
+            }
+            if index != 9 {
+                fenString.push('/')
+            }
+        }
+        fenString.push(' ');
+        if self.isRedTurn {
+            fenString.push('w');
+        } else {
+            fenString.push('b');
+        }
+        fenString.push_str(" - - 0 ");
+        fenString.push_str(((self.plyNumber / 2) + 1).to_string().as_str());
 
         return fenString;
     }
@@ -248,7 +293,7 @@ impl BoardState {
     }
 
     fn TryMove(&self, x: usize, y: usize, isRed : bool, flagBoard : &mut [[bool;9];10] ) {
-        if(!self.IsSameColour(x, y, isRed)) {
+        if !self.IsSameColour(x, y, isRed) {
             flagBoard[y][x] = true;
         }
     }
