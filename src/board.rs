@@ -1,4 +1,4 @@
-use std::char::from_digit;
+use std::{char::from_digit, collections::HashMap, default};
 
 /// Is all the information necessary to define a particular state of the board.
 pub struct BoardState
@@ -297,6 +297,42 @@ impl BoardState {
             flagBoard[y][x] = true;
         }
     }
+    /// Returns whether the given coordinate is within a palace.
+    fn IsPalace(x : usize, y : usize) -> bool {
+        return match x {
+            3..=5 => {
+                match y {
+                    0..=2 => true, // Red's palace
+                    7..=9 => true, // Black's palace
+                    _ => false
+                }
+            }
+            _ => false
+        };
+    }
+
+    ///NOTE: I'd love for this for be an iterator but iterators MUST be structs in Rust so
+    fn GetRaysFrom(&self, x: usize, y : usize) -> [Vec<((usize, usize), &Tile)>;4] {
+        let mut ret : [Vec<((usize, usize), &Tile)>;4] = Default::default();
+        //go up
+        for i in y+1..=BLACK_ROW {
+            ret[0].push(((x,i),&self.squares[i][x]));
+        }
+        //go left
+        for i in (0..x).rev() { // hate u rust
+            ret[1].push(((i,y),&self.squares[y][i]));
+        }
+        //go right
+        for i in x+1..8 {
+            ret[2].push(((i,y),&self.squares[y][i]));
+        }
+        //go down
+        for i in (0..y).rev() {
+            ret[3].push(((x,i),&self.squares[i][x]));
+        }
+
+        return ret;
+    }
 
     pub fn getMoves(&self, x : usize, y : usize) -> [[bool;9];10] {
         let mut flagBoard :  [[bool;9];10] = Default::default();
@@ -332,6 +368,180 @@ impl BoardState {
                             self.TryMove(x+1, y, piece.isRed, &mut flagBoard);
                         }
                     }
+                }
+            }
+            PieceType::Advisor => {
+                //bounds checking is more lax since advisors can only bump the top & bottom borders, not left & right
+                if y != BLACK_ROW {
+                    //up & left
+                    if BoardState::IsPalace(x-1, y+1) {
+                        self.TryMove(x-1, y+1, piece.isRed, &mut flagBoard);
+                    }
+                    //up & right
+                    if BoardState::IsPalace(x+1, y+1) {
+                        self.TryMove(x+1, y+1, piece.isRed, &mut flagBoard);
+                    }
+                }
+                if y != RED_ROW {
+                    //down & left
+                    if BoardState::IsPalace(x-1, y-1) {
+                        self.TryMove(x-1, y-1, piece.isRed, &mut flagBoard);
+                    }
+                    //down & right
+                    if BoardState::IsPalace(x+1, y-1) {
+                        self.TryMove(x+1, y-1, piece.isRed, &mut flagBoard);
+                    }
+                }
+            }
+            PieceType::Elephant => {
+                //This match is hideous but it's the only way I really know
+                //how to communicate this data in a compile-time manner in stock Rust.
+                //Note that it does not do a direct isRed check on the elephant;
+                //its allegiance is somewhat assumed by which side of the river it's on.
+                match (x,y) {
+                    //RED ELEPHANTS
+                    (2,0) => {
+                        self.TryMove(0, 2, piece.isRed, &mut flagBoard);
+                        self.TryMove(4, 2, piece.isRed, &mut flagBoard);
+                    }
+                    (6,0) => {
+                        self.TryMove(8, 2, piece.isRed, &mut flagBoard);
+                        self.TryMove(4, 2, piece.isRed, &mut flagBoard);
+                    }
+                    (0,2) => {
+                        self.TryMove(2, 4, piece.isRed, &mut flagBoard);
+                        self.TryMove(2, 0, piece.isRed, &mut flagBoard);
+                    },
+                    (4,2) => {
+                        self.TryMove(2, 4, piece.isRed, &mut flagBoard); //up and left
+                        self.TryMove(6, 4, piece.isRed, &mut flagBoard); //up and right
+                        self.TryMove(2, 0, piece.isRed, &mut flagBoard); //down and left
+                        self.TryMove(6, 0, piece.isRed, &mut flagBoard); //down and right
+                    },
+                    (8,2) => {
+                        self.TryMove(6, 4, piece.isRed, &mut flagBoard);
+                        self.TryMove(6, 0, piece.isRed, &mut flagBoard);
+                    },
+                    (2,4) => {
+                        self.TryMove(0, 2, piece.isRed, &mut flagBoard);
+                        self.TryMove(4, 2, piece.isRed, &mut flagBoard);
+                    },
+                    (6,4) => {
+                        self.TryMove(4, 2, piece.isRed, &mut flagBoard);
+                        self.TryMove(8, 2, piece.isRed, &mut flagBoard);
+                    },
+                    //BLACK ELEPHANTS
+                    (2,9) => {
+                        self.TryMove(0, 7, piece.isRed, &mut flagBoard);
+                        self.TryMove(4, 7, piece.isRed, &mut flagBoard);
+                    }
+                    (6,9) => {
+                        self.TryMove(8, 7, piece.isRed, &mut flagBoard);
+                        self.TryMove(4, 7, piece.isRed, &mut flagBoard);
+                    }
+                    (0,7) => {
+                        self.TryMove(2, 5, piece.isRed, &mut flagBoard);
+                        self.TryMove(2, 9, piece.isRed, &mut flagBoard);
+                    },
+                    (4,7) => {
+                        self.TryMove(2, 5, piece.isRed, &mut flagBoard); //up and left
+                        self.TryMove(6, 5, piece.isRed, &mut flagBoard); //up and right
+                        self.TryMove(2, 9, piece.isRed, &mut flagBoard); //down and left
+                        self.TryMove(6, 9, piece.isRed, &mut flagBoard); //down and right
+                    },
+                    (8,7) => {
+                        self.TryMove(6, 5, piece.isRed, &mut flagBoard);
+                        self.TryMove(6, 9, piece.isRed, &mut flagBoard);
+                    },
+                    (2,5) => {
+                        self.TryMove(0, 7, piece.isRed, &mut flagBoard);
+                        self.TryMove(4, 7, piece.isRed, &mut flagBoard);
+                    },
+                    (6,5) => {
+                        self.TryMove(4, 7, piece.isRed, &mut flagBoard);
+                        self.TryMove(8, 7, piece.isRed, &mut flagBoard);
+                    },
+                    _ => {
+                        print!("Invalid position for elephant!");
+                        debug_assert!(false);
+                    }
+                };
+            }
+            PieceType::Horse => {
+                //up
+                if y < BLACK_ROW - 1 {
+                    if self.squares[y+1][x].piece.is_none() { // Knights can be blocked in Xiangqi!
+                        self.TryMove(x-1, y+2, piece.isRed, &mut flagBoard);
+                        self.TryMove(x+1, y+2, piece.isRed, &mut flagBoard);
+                    }
+                }
+                //left
+                if x > 1 {
+                    if self.squares[y][x-1].piece.is_none() {
+                        self.TryMove(x-2, y+1, piece.isRed, &mut flagBoard);
+                        self.TryMove(x-2, y-1, piece.isRed, &mut flagBoard);
+                    }
+                }
+                //down
+                if y > RED_ROW + 1 {
+                    if self.squares[y-1][x].piece.is_none() {
+                        self.TryMove(x-1, y-2, piece.isRed, &mut flagBoard);
+                        self.TryMove(x+1, y-2, piece.isRed, &mut flagBoard);
+                    }
+                }
+                //right
+                if x < 7 {
+                    if self.squares[y][x+1].piece.is_none() {
+                        self.TryMove(x+2, y+1, piece.isRed, &mut flagBoard);
+                        self.TryMove(x+2, y-1, piece.isRed, &mut flagBoard);
+                    }
+                }
+            }
+            PieceType::Cannon => {
+                'outer: for ray in self.GetRaysFrom(x,y) {
+                    let mut foundHoppable = false;
+                    for (pos, tile) in ray {
+                        if foundHoppable {
+                            if tile.piece.is_none() {
+                                continue;
+                            }
+                            self.TryMove(pos.0,pos.1, piece.isRed, &mut flagBoard);
+                            break 'outer;
+                        } else {
+                            if tile.piece.is_none() {
+                                self.TryMove(pos.0, pos.1, piece.isRed, &mut flagBoard);   
+                            }
+                            foundHoppable = true;
+                        }
+                    }
+                }
+            }
+            PieceType::Rook => {
+                'outer: for ray in self.GetRaysFrom(x,y) {
+                    for (pos, tile) in ray {
+                        self.TryMove(pos.0, pos.1, piece.isRed, &mut flagBoard);   
+                        if tile.piece.is_some() {
+                            break 'outer;
+                        }
+                    }
+                }
+            }
+            PieceType::King => {
+                //up
+                if y < BLACK_ROW && BoardState::IsPalace(x, y+1) {
+                    self.TryMove(x, y+1, piece.isRed, &mut flagBoard);  
+                }
+                //left
+                if x > 0 && BoardState::IsPalace(x-1, y) {
+                    self.TryMove(x-1, y, piece.isRed, &mut flagBoard);  
+                }
+                //down
+                if y > RED_ROW && BoardState::IsPalace(x, y-1) {
+                    self.TryMove(x, y-1, piece.isRed, &mut flagBoard);  
+                }
+                //right
+                if x < 8 && BoardState::IsPalace(x+1, y) {
+                    self.TryMove(x+1, y, piece.isRed, &mut flagBoard);  
                 }
             }
             _ => {} // do nothing :#
