@@ -1,4 +1,4 @@
-use std::{char::from_digit, collections::HashMap, default};
+use std::{char::from_digit, collections::HashMap, default,fmt};
 
 /// Is all the information necessary to define a particular state of the board.
 pub struct BoardState
@@ -22,11 +22,13 @@ enum PieceType {
     Rook,
     King
 }
+
 pub struct Piece
 {
     pieceType : PieceType,
     isRed : bool
 }
+
 
 /// the Y index for where black's back rank is.
 const BLACK_ROW : usize = 9;
@@ -323,17 +325,42 @@ impl BoardState {
             ret[1].push(((i,y),&self.squares[y][i]));
         }
         //go right
-        for i in x+1..8 {
+        for i in x+1..9 {
             ret[2].push(((i,y),&self.squares[y][i]));
         }
         //go down
-        for i in (0..y).rev() {
+        for i in (RED_ROW..y).rev() {
             ret[3].push(((x,i),&self.squares[i][x]));
         }
 
         return ret;
     }
-
+    pub fn countMoves(&self) -> i32 {
+        let mut count = 0;
+        for (y,arr) in self.squares.iter().enumerate() {
+            for (x,tile) in arr.iter().enumerate() {
+                if tile.piece.is_none() {
+                    continue;
+                }
+                let piece : &Piece = tile.piece.as_ref().unwrap();
+                if piece.isRed != self.isRedTurn {
+                    continue;
+                }
+                let arr = self.getMoves(x, y);
+                let mut localCount = 0;
+                for sub in arr.iter() {
+                    for val in sub.iter() {
+                        if *val {
+                            localCount += 1;
+                        }
+                    }
+                }
+                println!("{} has {} moves!",piece,localCount);
+                count += localCount;
+            }
+        }
+        return count;
+    }
     pub fn getMoves(&self, x : usize, y : usize) -> [[bool;9];10] {
         let mut flagBoard :  [[bool;9];10] = Default::default();
         let piece : &Piece = self.squares[y][x].piece.as_ref().unwrap();
@@ -498,7 +525,7 @@ impl BoardState {
                 }
             }
             PieceType::Cannon => {
-                'outer: for ray in self.GetRaysFrom(x,y) {
+                for ray in self.GetRaysFrom(x,y) {
                     let mut foundHoppable = false;
                     for (pos, tile) in ray {
                         if foundHoppable {
@@ -506,10 +533,11 @@ impl BoardState {
                                 continue;
                             }
                             self.TryMove(pos.0,pos.1, piece.isRed, &mut flagBoard);
-                            break 'outer;
+                            break;
                         } else {
                             if tile.piece.is_none() {
-                                self.TryMove(pos.0, pos.1, piece.isRed, &mut flagBoard);   
+                                self.TryMove(pos.0, pos.1, piece.isRed, &mut flagBoard);
+                                continue;
                             }
                             foundHoppable = true;
                         }
@@ -517,11 +545,11 @@ impl BoardState {
                 }
             }
             PieceType::Rook => {
-                'outer: for ray in self.GetRaysFrom(x,y) {
+                for ray in self.GetRaysFrom(x,y) {
                     for (pos, tile) in ray {
                         self.TryMove(pos.0, pos.1, piece.isRed, &mut flagBoard);   
                         if tile.piece.is_some() {
-                            break 'outer;
+                            break;
                         }
                     }
                 }
@@ -581,5 +609,23 @@ impl Piece {
             character = character.to_uppercase().next().unwrap_or(character);
         }
         return character;
+    }
+}
+
+impl fmt::Display for Piece {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut cara : char = match self.pieceType {
+            PieceType::Pawn => 'p',
+            PieceType::Advisor => 'a',
+            PieceType::Elephant => 'e',
+            PieceType::Horse => 'h',
+            PieceType::Cannon => 'c',
+            PieceType::Rook => 'r',
+            PieceType::King => 'k'
+        };
+        if self.isRed { // Red is Capital!
+            cara = cara.to_ascii_uppercase();
+        }
+        write!(f, "{}", cara)
     }
 }
