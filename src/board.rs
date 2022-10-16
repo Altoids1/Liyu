@@ -1,7 +1,8 @@
 use std::{char::from_digit,fmt};
 pub mod piece;
-use piece::Piece;
-use piece::PieceType;
+pub mod tile;
+use piece::{PieceType,Piece};
+use tile::{Tile,TileIterator};
 
 /// Is all the information necessary to define a particular state of the board.
 pub struct BoardState
@@ -11,10 +12,7 @@ pub struct BoardState
     isRedTurn : bool,
     plyNumber : i32, // Zero-indexed. Either player moving increments this. Even for Red and odd for Black
 }
-pub struct Tile
-{
-    piece : Option<Piece>
-}
+
 
 /// the Y index for where black's back rank is.
 const BLACK_ROW : usize = 9;
@@ -274,6 +272,11 @@ impl BoardState {
 
         return ret;
     }
+
+    pub fn IterateTiles(&self) -> TileIterator {
+        return TileIterator::new(&self.squares);
+    }
+
     pub fn countMoves(&self) -> i32 {
         let mut count = 0;
         for (y,arr) in self.squares.iter().enumerate() {
@@ -516,23 +519,6 @@ impl BoardState {
         return flagBoard;
     }
 }
-
-impl Tile {
-    #[allow(dead_code)] // things need constructors, Rust, god
-    pub fn new() -> Self {
-        return Default::default();
-    }
-}
-
-impl Default for Tile {
-    fn default() -> Self {
-        return Self {
-            piece: Default::default()
-        }
-    }
-}
-
-
 
 impl fmt::Display for Piece {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
