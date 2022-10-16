@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub enum PieceType {
     Pawn,
     Advisor,
@@ -8,6 +9,7 @@ pub enum PieceType {
     King
 }
 
+#[derive(Clone)]
 pub struct Piece
 {
     pub pieceType : PieceType,

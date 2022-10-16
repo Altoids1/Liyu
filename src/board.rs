@@ -5,6 +5,7 @@ use piece::{PieceType,Piece};
 use tile::{Tile,TileIterator};
 
 /// Is all the information necessary to define a particular state of the board.
+#[derive(Clone)]
 pub struct BoardState
 {
     // first dimension is x (a to i), second is y (1 to 10)
@@ -231,9 +232,9 @@ impl BoardState {
         return !self.squares[y][x].piece.is_none() && self.squares[y][x].piece.as_ref().unwrap().isRed == isRed;
     }
 
-    fn TryMove(&self, x: usize, y: usize, isRed : bool, flagBoard : &mut [[bool;9];10] ) {
+    fn TryMove(&self, x: usize, y: usize, isRed : bool, flagBoard : &mut Vec<(usize,usize)> ) {
         if !self.IsSameColour(x, y, isRed) {
-            flagBoard[y][x] = true;
+            flagBoard.push((x,y));
         }
     }
     /// Returns whether the given coordinate is within a palace.
@@ -288,23 +289,46 @@ impl BoardState {
                 if piece.isRed != self.isRedTurn {
                     continue;
                 }
-                let arr = self.getMoves(x, y);
-                let mut localCount = 0;
-                for sub in arr.iter() {
-                    for val in sub.iter() {
-                        if *val {
-                            localCount += 1;
-                        }
-                    }
-                }
-                println!("{} has {} moves!",piece,localCount);
-                count += localCount;
+                let arr = self.getPieceMoves(x, y);
+                //println!("{} has {} moves!",piece,arr.len());
+                count += arr.len();
             }
         }
-        return count;
+        return count as i32;
     }
-    pub fn getMoves(&self, x : usize, y : usize) -> [[bool;9];10] {
-        let mut flagBoard :  [[bool;9];10] = Default::default();
+
+    ///Coordinates returned are in (x,y) order.
+    pub fn getAllMoves(&self, isRed : bool) -> Vec<((usize,usize),(usize,usize))> {
+        let mut ret : Vec<((usize,usize),(usize,usize))> = Default::default();
+        for (startPos,tile) in self.IterateTiles() {
+            if tile.piece.is_none() {
+                continue;
+            }
+            let piece : &Piece = tile.piece.as_ref().unwrap();
+            if piece.isRed != isRed {
+                continue;
+            }
+            for endPos in self.getPieceMoves(startPos.0, startPos.1) {
+                ret.push((startPos,endPos));
+            }
+        }
+        return ret;
+    }
+
+    ///Creates a new version of the board with the given move played. Implicitly is doing a copy.
+    ///Coordinates in (x,y), "from->to" order.
+    pub fn branch(&self, newMove : ((usize,usize),(usize,usize))) -> Self {
+        let mut ret : Self = self.clone();
+        let mut oldTile : &mut Tile = &mut ret.squares[newMove.0.1][newMove.0.0];
+        ret.squares[newMove.1.1][newMove.1.0].piece = oldTile.piece.take();
+        ret.isRedTurn = !ret.isRedTurn;
+        ret.plyNumber += 1;
+        return ret;
+    }
+
+    ///Coordinates returned are in (x,y) order.
+    pub fn getPieceMoves(&self, x : usize, y : usize) -> Vec<(usize,usize)> {
+        let mut flagBoard :  Vec<(usize,usize)> = Default::default();
         let piece : &Piece = self.squares[y][x].piece.as_ref().unwrap();
         match piece.pieceType { 
             PieceType::Pawn => {
