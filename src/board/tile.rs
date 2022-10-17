@@ -1,4 +1,6 @@
-#[derive(Clone)]
+use std::ops::Range;
+
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Tile
 {
     pub piece : Option<crate::board::piece::Piece>
@@ -8,7 +10,8 @@ pub struct Tile
 pub struct TileIterator<'a> {
     squaresRef : &'a [[Tile;9];10],
     x : usize,
-    y : usize
+    y : usize,
+    doneFirst : bool // SO DUMB
 }
 
 impl Tile {
@@ -32,28 +35,28 @@ impl<'a> TileIterator<'a> {
             squaresRef : squares,
             x : 0,
             y : 0,
+            doneFirst : false
         };
-    }
-    fn increment(&mut self) -> bool {
-        if self.x < 8 {
-            self.x += 1;
-            return true;
-        }
-        if self.y < 9 {
-            self.y += 1;
-            return true; 
-        }
-        return false;
     }
 }
 
 impl<'a> Iterator for TileIterator<'a> {
     type Item = ((usize,usize),&'a Tile);
-    fn next(&mut self) -> Option<Self::Item> {
-        //handle indexing
-        if !self.increment() {
+    fn next(&mut self) -> Option<Self::Item> { // FIXME: Make this not suck.
+        if !self.doneFirst {
+            let ret = Some(((self.x,self.y),&self.squaresRef[self.y][self.x]));
+            self.doneFirst = true;
+            return ret;
+        }
+        if self.x < 8 {
+            self.x += 1;
+        }
+        else if self.y < 9 {
+            self.x = 0;
+            self.y += 1;
+        } else {
             return None;
         }
-        return Some(((self.x,self.y),&self.squaresRef[self.y][self.x]));
+        return Some(((self.x,self.y),&self.squaresRef[self.y][self.x]));;
     }
 }
