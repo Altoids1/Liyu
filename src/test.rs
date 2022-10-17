@@ -1,7 +1,8 @@
-#[cfg(test)]
+
+#![cfg(test)]
 
 use crate::board;
-use crate::engine::score;
+use crate::engine;
 
 #[test]
 pub fn FEN_starting_position() { // Tests that basic reading/writing of FENs works
@@ -26,5 +27,19 @@ pub fn ruleset_branch() { // Tests that, like, moving pieces around works
 
 #[test]
 pub fn score_test() {
-    assert_eq!(format!("{:#b}",score::RED_WON),"0b1111111111000000000000000000000");
+    assert_eq!(format!("{:#b}",engine::score::RED_WON),"0b1111111111000000000000000000000");
+}
+
+#[test]
+pub fn tileiterator_asserts() {
+    let starting_board = board::BoardState::new();
+    assert_eq!(starting_board.IterateTiles().count(),90);
+}
+
+#[test]
+pub fn engine_starting_position() {
+    let starting_board = board::BoardState::new();
+    let displayResult = format!("{}",engine::Engine::evalToDepth(&starting_board,3));
+    assert_ne!(displayResult,"inf");
+    assert_ne!(displayResult,"-inf");
 }

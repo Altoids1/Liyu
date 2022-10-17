@@ -1,5 +1,5 @@
 use std::mem::transmute;
-use std::fmt::{Binary,Error,Formatter};
+use std::fmt::{Binary,Error,Formatter,Display};
 
 /// So The Deal here is that uh
 /// we want the engine to be able to pass around just, basic floats to describe the current evaluation of the board
@@ -46,9 +46,55 @@ impl Default for ScoreF32 {
     }
 }
 
+impl PartialEq for ScoreF32 {
+    fn eq(&self, other: &Self) -> bool { // Must be PERFECT bitwise equality
+        unsafe {
+            return transmute::<f32,u32>(self.data) == transmute::<f32,u32>(other.data);
+        }
+    }
+}
+impl<'a> PartialEq<&'a ScoreF32> for ScoreF32 {
+    fn eq(&self, other: &&'a ScoreF32) -> bool {
+        self == *other
+    }
+}
+
+impl<'a> PartialEq<ScoreF32> for &'a ScoreF32 {
+    fn eq(&self, other: &ScoreF32) -> bool {
+        *self == other
+    }
+}
+
+impl Display for ScoreF32 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        /* TODO: Try to make this code work. WTF is match's problem here, throwing because this isn't a const expression?
+        return match self {
+            &RED_WON => write!(f, "Red Wins"),
+            &BLACK_WON => write!(f, "Black Wins"),
+            &INVALID_POS => write!(f, "Invalid position"),
+            _ => write!(f,"{}",self.data)
+        };
+        */
+        if self == RED_WON {
+            return write!(f, "Red Wins");
+        }
+        if self == BLACK_WON {
+            return write!(f, "Black Wins");
+        }
+        if self == INVALID_POS {
+            return write!(f, "Invalid position");
+        }
+        return write!(f,"{}",self.data);
+    }
+}
+
 impl Binary for ScoreF32 {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         // Just uses u32's thing
         Binary::fmt( unsafe { &transmute::<f32, u32>(self.data)}, f)
     }
 }
+
+
+
+impl Eq for ScoreF32 {}

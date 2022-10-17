@@ -5,13 +5,13 @@ use piece::{PieceType,Piece};
 use tile::{Tile,TileIterator};
 
 /// Is all the information necessary to define a particular state of the board.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct BoardState
 {
     // first dimension is x (a to i), second is y (1 to 10)
-    squares : [[Tile;9];10],
-    isRedTurn : bool,
-    plyNumber : i32, // Zero-indexed. Either player moving increments this. Even for Red and odd for Black
+    pub squares : [[Tile;9];10],
+    pub isRedTurn : bool,
+    pub plyNumber : i32, // Zero-indexed. Either player moving increments this. Even for Red and odd for Black
 }
 
 
@@ -169,7 +169,7 @@ impl BoardState {
     }
 
     pub fn Display(&self) {
-        print!("Position value: {}\n",self.getValue());
+        //print!("Position value: {}\n",self.getValue());
         for arr in self.squares.iter().rev() {
             for tile in arr {
                 if tile.piece.is_none() {
@@ -182,7 +182,7 @@ impl BoardState {
         }
     }
     /// Returns the value of the position w/o depth evaluation; the "aesthetic" value of the board.
-    /// Positive value means Red is winning, negative value means Black is winning. Forced draws are 0.
+    /// Positive value means Red is winning, negative value means Black is winning.
     pub fn getValue(&self) -> f32 {
         let mut sum : f32 = 0f32;
         let mut foundRedKing : bool = false;
@@ -229,6 +229,9 @@ impl BoardState {
     }
 
     fn IsSameColour(&self, x: usize, y : usize, isRed : bool) -> bool {
+        if x > 8 || y > 9 {
+            panic!("wtf");
+        }
         return !self.squares[y][x].piece.is_none() && self.squares[y][x].piece.as_ref().unwrap().isRed == isRed;
     }
 
@@ -298,14 +301,14 @@ impl BoardState {
     }
 
     ///Coordinates returned are in (x,y) order.
-    pub fn getAllMoves(&self, isRed : bool) -> Vec<((usize,usize),(usize,usize))> {
+    pub fn getAllMoves(&self) -> Vec<((usize,usize),(usize,usize))> {
         let mut ret : Vec<((usize,usize),(usize,usize))> = Default::default();
         for (startPos,tile) in self.IterateTiles() {
             if tile.piece.is_none() {
                 continue;
             }
             let piece : &Piece = tile.piece.as_ref().unwrap();
-            if piece.isRed != isRed {
+            if piece.isRed != self.isRedTurn {
                 continue;
             }
             for endPos in self.getPieceMoves(startPos.0, startPos.1) {
@@ -464,29 +467,45 @@ impl BoardState {
                 //up
                 if y < BLACK_ROW - 1 {
                     if self.squares[y+1][x].piece.is_none() { // Knights can be blocked in Xiangqi!
-                        self.TryMove(x-1, y+2, piece.isRed, &mut flagBoard);
-                        self.TryMove(x+1, y+2, piece.isRed, &mut flagBoard);
+                        if x > 0 {
+                            self.TryMove(x-1, y+2, piece.isRed, &mut flagBoard);
+                        }
+                        if x < 8 {
+                            self.TryMove(x+1, y+2, piece.isRed, &mut flagBoard);
+                        }
                     }
                 }
                 //left
                 if x > 1 {
                     if self.squares[y][x-1].piece.is_none() {
-                        self.TryMove(x-2, y+1, piece.isRed, &mut flagBoard);
-                        self.TryMove(x-2, y-1, piece.isRed, &mut flagBoard);
+                        if y < BLACK_ROW {
+                            self.TryMove(x-2, y+1, piece.isRed, &mut flagBoard);
+                        }
+                        if y > RED_ROW {
+                            self.TryMove(x-2, y-1, piece.isRed, &mut flagBoard);
+                        }
                     }
                 }
                 //down
                 if y > RED_ROW + 1 {
                     if self.squares[y-1][x].piece.is_none() {
-                        self.TryMove(x-1, y-2, piece.isRed, &mut flagBoard);
-                        self.TryMove(x+1, y-2, piece.isRed, &mut flagBoard);
+                        if x > 0 {
+                            self.TryMove(x-1, y-2, piece.isRed, &mut flagBoard);
+                        }
+                        if x < 8 {
+                            self.TryMove(x+1, y-2, piece.isRed, &mut flagBoard);
+                        }
                     }
                 }
                 //right
                 if x < 7 {
                     if self.squares[y][x+1].piece.is_none() {
-                        self.TryMove(x+2, y+1, piece.isRed, &mut flagBoard);
-                        self.TryMove(x+2, y-1, piece.isRed, &mut flagBoard);
+                        if y < BLACK_ROW {
+                            self.TryMove(x+2, y+1, piece.isRed, &mut flagBoard);
+                        }
+                        if y > RED_ROW {
+                            self.TryMove(x+2, y-1, piece.isRed, &mut flagBoard);
+                        }
                     }
                 }
             }

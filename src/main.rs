@@ -4,7 +4,6 @@
 use std::collections::VecDeque;
 use std::env;
 use std::io::{stdin, stdout, Write};
-use std::mem::transmute;
 
 mod board;
 mod test;
@@ -55,7 +54,7 @@ fn main() {
                 say!("Board position now: {}",boardPosition.writeFEN());
             }
             "eval" | "EVAL" => {
-                say!("Current evaluation: {}",boardPosition.getValue());
+                say!("Current evaluation: {}",engine::Engine::evalToDepth(&boardPosition, 3));
             }
             "display" | "DISPLAY" => {
                 boardPosition.Display();
