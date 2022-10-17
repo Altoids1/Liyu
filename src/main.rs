@@ -4,8 +4,11 @@
 use std::collections::VecDeque;
 use std::env;
 use std::io::{stdin, stdout, Write};
+use std::mem::transmute;
+
 mod board;
 mod test;
+mod engine;
 
 /// An error handling layer above write! that generically handles all the Result<>s floating around.
 macro_rules! say {
