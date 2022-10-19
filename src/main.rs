@@ -43,7 +43,7 @@ fn main() {
             "h" | "help" | "HELP" => {
                 say!("Available commands:\n");
                 say!("'fen [FenString]' - loads in a new position from a valid FEN string.\n");
-                say!("'eval' - returns the current evaluation of the position.\n");
+                say!("'eval [Depth=3]' - returns the current evaluation of the position.\n");
                 say!("'display' - displays an ASCII depiction of the current board.\n");
                 say!("'quit' - exits the program.");
             }
@@ -54,7 +54,23 @@ fn main() {
                 say!("Board position now: {}",boardPosition.writeFEN());
             }
             "eval" | "EVAL" => {
-                say!("Current evaluation: {}",engine::Engine::evalToDepth(&boardPosition, 3));
+                let depth : i32;
+                match words.len() {
+                    1 => depth = 3,
+                    2 => {
+                        let cmd = words[1].parse::<i32>();
+                        if cmd.is_err() {
+                            say!("Invalid argument to 'eval' - argument must be integer");
+                            continue;
+                        }
+                        depth = cmd.unwrap();
+                    }
+                    _ => {
+                        say!("Too many arguments to 'eval'");
+                        continue;
+                    }
+                }
+                say!("Current evaluation: {}",engine::Engine::evalToDepth(&boardPosition, depth));
             }
             "display" | "DISPLAY" => {
                 boardPosition.Display();

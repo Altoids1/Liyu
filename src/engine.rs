@@ -1,4 +1,5 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
+use std::time::Instant;
 use crate::board::{BoardState, piece::PieceType};
 
 use self::score::{ScoreF32, RED_WON,BLACK_WON};
@@ -7,18 +8,23 @@ pub mod score;
 
 pub struct Engine
 {
-    cache : HashMap<BoardState,f32>
+    cache : HashMap<BoardState,f32>,
+    nodeCount: i32
 }
 
 impl Engine {
     fn new() -> Self {
         return Self {
-            cache : Default::default()
+            cache : Default::default(),
+            nodeCount : 0
         };
     }
     pub fn evalToDepth(startState : &BoardState, depth : i32) -> ScoreF32 {
         let mut engine : Self = Engine::new();
-        return engine._eval(startState.to_owned(),depth);
+        let now = Instant::now();
+        let ret = engine._eval(startState.to_owned(),depth);
+        print!("Engine evaluated {} nodes ({} nodes/sec)\n",engine.nodeCount, (engine.nodeCount as f32) / now.elapsed().as_secs_f32());
+        return ret;
     }
 
     fn findKing(&self, state : &BoardState) -> Result<(usize, usize), i32> {
@@ -60,9 +66,10 @@ impl Engine {
         let mut redBest : ScoreF32 = ScoreF32::new(f32::NEG_INFINITY);
 
         for (here,there) in moves {
-            let newBoard = state.branch((here,there));
-            if self.inCheck(&mut state, kingPos) {
-                continue;
+            let mut newBoard = state.branch((here,there));
+            self.nodeCount += 1;
+            if self.inCheck(&mut newBoard, kingPos) { // if we are (or are still) in check in the new position
+                continue; // naw
             }
             foundValidMove = true;
             let moveScore = self._eval(newBoard, depth-1);
