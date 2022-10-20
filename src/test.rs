@@ -3,6 +3,7 @@
 
 use crate::board;
 use crate::engine;
+use crate::engine::score::{ScoreF32,BLACK_WON,INVALID_POS,RED_WON};
 
 #[test]
 pub fn FEN_starting_position() { // Tests that basic reading/writing of FENs works
@@ -28,6 +29,13 @@ pub fn ruleset_branch() { // Tests that, like, moving pieces around works
 #[test]
 pub fn score_test() {
     assert_eq!(format!("{:#b}",engine::score::RED_WON),"0b1111111111000000000000000000000");
+    assert_eq!(INVALID_POS,INVALID_POS);
+    assert!(!(INVALID_POS != INVALID_POS));
+    assert_ne!(INVALID_POS,RED_WON);
+    assert_ne!(BLACK_WON,RED_WON);
+    assert!(BLACK_WON < RED_WON);
+    assert!(BLACK_WON < ScoreF32::new(0f32));
+    assert!(RED_WON > ScoreF32::new(5f32));
 }
 
 #[test]

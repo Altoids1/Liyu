@@ -1,5 +1,6 @@
 use std::mem::transmute;
-use std::fmt::{Binary,Error,Formatter,Display};
+use std::fmt::{Binary,Error,Formatter,Display,Debug};
+use std::cmp::Ordering;
 
 /// So The Deal here is that uh
 /// we want the engine to be able to pass around just, basic floats to describe the current evaluation of the board
@@ -38,11 +39,30 @@ impl ScoreF32 {
     pub const fn new_from_binary(val : u32) -> Self {
         unsafe { return Self { data: transmute::<u32,f32>(val)}; }
     }
+    const fn to_bytes(&self) -> u32 {
+        unsafe { return transmute::<f32,u32>(self.data); }
+    }
 }
 
 impl Default for ScoreF32 {
     fn default() -> Self {
         return Self::new(0f32);
+    }
+}
+
+#[allow(non_upper_case_globals)]
+impl Debug for ScoreF32 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(),Error> {
+        let my_bytes = self.to_bytes();
+        const invalid_bytes : u32 = INVALID_POS.to_bytes();
+        const redwon_bytes : u32 = RED_WON.to_bytes();
+        const blackwon_bytes : u32 = BLACK_WON.to_bytes();
+        match my_bytes {
+            invalid_bytes => write!(f,"INVALID_POS"),
+            redwon_bytes => write!(f,"RED_WON"),
+            blackwon_bytes => write!(f,"BLACK_WON"),
+            _ => write!(f,"{}",self.data)
+        }
     }
 }
 
@@ -64,6 +84,8 @@ impl<'a> PartialEq<ScoreF32> for &'a ScoreF32 {
         *self == other
     }
 }
+
+impl Eq for ScoreF32 {}
 
 impl Display for ScoreF32 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -95,6 +117,64 @@ impl Binary for ScoreF32 {
     }
 }
 
+///Can't implement Ord because INVALID_POS has no reasonable ordering
+#[allow(non_upper_case_globals)] // go frick yourself Rust, you got me into this mess in the first place
+impl PartialOrd for ScoreF32 {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { // ordering should be "$self is [blah] to $other"
+        //Weird shitty kludginess here to allow us to use match,
+        //since it erroneously lacks the functionality of supporting user-defined equality.
+        let my_bytes = self.to_bytes();
+        let their_bytes = other.to_bytes();
+        const invalid_bytes : u32 = INVALID_POS.to_bytes();
+        const redwon_bytes : u32 = RED_WON.to_bytes();
+        const blackwon_bytes : u32 = BLACK_WON.to_bytes();
 
-
-impl Eq for ScoreF32 {}
+        match my_bytes {
+            invalid_bytes => {
+                return None; // WARNING: This is a null != null situation.
+            }
+            redwon_bytes => {
+                match their_bytes {
+                    invalid_bytes => {
+                        return None;
+                    }
+                    redwon_bytes => {
+                        return Some(Ordering::Equal);
+                    }
+                    _ => { // This actually does mean (intentionally) that RED_WON is greater than INF.
+                        return Some(Ordering::Greater);
+                    }
+                }
+            }
+            blackwon_bytes => {
+                match their_bytes {
+                    invalid_bytes => {
+                        return None;
+                    }
+                    blackwon_bytes => {
+                        return Some(Ordering::Equal);
+                    }
+                    _ => {
+                        return Some(Ordering::Less);
+                    }
+                }
+            }
+            _ => {
+                match their_bytes {
+                    invalid_bytes => {
+                        return None;
+                    }
+                    redwon_bytes => {
+                        return Some(Ordering::Less);
+                    }
+                    blackwon_bytes => {
+                        return Some(Ordering::Greater);
+                    }
+                    _ => {
+                        return self.data.partial_cmp(&other.data);
+                    }
+                }
+            }
+        };
+    }
+}
