@@ -1,9 +1,27 @@
 use std::ops::Range;
 
+use super::piece::Piece;
+
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Tile
 {
-    pub piece : Option<crate::board::piece::Piece>
+    pub pieceIndex : Option<PieceIndex>
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct PieceIndex {
+    pub cara : char // SO DUMB
+}
+
+impl PieceIndex {
+    pub fn new(c : char) -> Self {
+        return Self {
+            cara : c
+        };
+    }
+    pub fn asChar(&self) -> char {
+        return self.cara;
+    }
 }
 
 ///Iterator used to iterate over the tiles of a BoardState.
@@ -24,7 +42,7 @@ impl Tile {
 impl Default for Tile {
     fn default() -> Self {
         return Self {
-            piece: Default::default()
+            pieceIndex: Default::default()
         }
     }
 }
@@ -57,6 +75,6 @@ impl<'a> Iterator for TileIterator<'a> {
         } else {
             return None;
         }
-        return Some(((self.x,self.y),&self.squaresRef[self.y][self.x]));;
+        return Some(((self.x,self.y),&self.squaresRef[self.y][self.x]));
     }
 }

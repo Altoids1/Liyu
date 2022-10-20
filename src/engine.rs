@@ -27,17 +27,6 @@ impl Engine {
         return ret;
     }
 
-    fn findKing(&self, state : &BoardState) -> Result<(usize, usize), i32> {
-        for (coords, tile) in state.IterateTiles() {
-            if tile.piece.is_some() {
-                let piece = tile.piece.as_ref().unwrap();
-                if piece.isRed == state.isRedTurn && piece.pieceType == PieceType::King { 
-                    return Ok(coords);
-                }
-            }
-        }
-        return Err(-1);
-    }
     fn inCheck(&self, state : &mut BoardState, kingPos : (usize,usize)) -> bool {
         //TODO
         return false;
@@ -56,11 +45,12 @@ impl Engine {
             return score::RED_WON;
         }
         //Is the current player's king attacked?
-        let kingRet = self.findKing(&state);
-        if kingRet.is_err() {
-            return score::INVALID_POS;
+        let kingPos : (usize,usize);
+        if state.isRedTurn {
+            kingPos = state.redPieces.King;
+        } else {
+            kingPos = state.blackPieces.King;
         }
-        let kingPos = kingRet.unwrap();
         let mut foundValidMove : bool = false;
         let mut blackBest : ScoreF32 = ScoreF32::new(f32::INFINITY);
         let mut redBest : ScoreF32 = ScoreF32::new(f32::NEG_INFINITY);
