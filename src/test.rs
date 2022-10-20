@@ -8,7 +8,7 @@ use crate::engine;
 pub fn FEN_starting_position() { // Tests that basic reading/writing of FENs works
     
     let starting_board = board::BoardState::new();
-    assert!(starting_board.writeFEN() == board::STARTING_POSITION_FEN);
+    assert_eq!(starting_board.writeFEN(),board::STARTING_POSITION_FEN);
 }
 
 #[test]

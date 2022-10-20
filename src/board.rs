@@ -1,8 +1,13 @@
-use std::{char::from_digit,fmt};
+use std::{char::from_digit,fmt,borrow::Cow};
 pub mod piece;
 pub mod tile;
 use piece::{PieceType,Piece};
-use tile::{Tile,TileIterator};
+use tile::{Tile,TileIterator,PieceIndex};
+
+use self::piece::{PieceSet, PieceSetIterator};
+
+type Coord = (usize,usize);
+const DEAD_PIECE_COORD : Coord = (usize::MAX,usize::MAX);
 
 /// Is all the information necessary to define a particular state of the board.
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -12,6 +17,8 @@ pub struct BoardState
     pub squares : [[Tile;9];10],
     pub isRedTurn : bool,
     pub plyNumber : i32, // Zero-indexed. Either player moving increments this. Even for Red and odd for Black
+    pub(crate) redPieces : PieceSet,
+    pub(crate) blackPieces : PieceSet
 }
 
 
@@ -34,7 +41,9 @@ impl BoardState {
         let mut ret =  Self {
             squares : Default::default(),
             isRedTurn : true,
-            plyNumber : 1
+            plyNumber : 1,
+            redPieces : Default::default(),
+            blackPieces : Default::default()
         };
 
         ret.loadFEN(fenstr);
@@ -69,6 +78,40 @@ impl BoardState {
         return ret.unwrap_or(1);
     }
 
+    /// helper of a helper of a helper; for placePiece's eyes only, really.
+    fn spawnSpecificPiece<const N: usize>(arr : &mut [(usize,usize);N], coord : &Coord, cara : char) {
+        for (i,oldCoord) in arr.into_iter().enumerate() {
+            if *oldCoord == DEAD_PIECE_COORD {
+                arr[i] = *coord;
+                return;
+            }
+        }
+        panic!("Too many of a certain piece in FEN!");
+    }
+
+    fn spawnPiece(&mut self, cara : char, coord : Coord ) {
+        let set : &mut PieceSet;
+        let piece : Piece = Piece::new(cara,coord);
+        if piece.isRed {
+            set = &mut self.redPieces;
+        } else {
+            set = &mut self.blackPieces;
+        }
+        self.squares[coord.1][coord.0].pieceIndex = Some(PieceIndex::new(cara));
+        match piece.pieceType {
+            PieceType::King => {
+                set.King = piece.loc;
+                self.squares[coord.1][coord.0].pieceIndex = Some(PieceIndex::new(cara));
+            },
+            PieceType::Rook => Self::spawnSpecificPiece(&mut set.Rooks,&piece.loc, cara),
+            PieceType::Cannon => Self::spawnSpecificPiece(&mut set.Cannons,&piece.loc, cara),
+            PieceType::Horse => Self::spawnSpecificPiece(&mut set.Horses,&piece.loc, cara),
+            PieceType::Elephant => Self::spawnSpecificPiece(&mut set.Elephants,&piece.loc, cara),
+            PieceType::Advisor => Self::spawnSpecificPiece(&mut set.Advisors,&piece.loc, cara),
+            PieceType::Pawn => Self::spawnSpecificPiece(&mut set.Pawns,&piece.loc, cara),
+        };
+    }
+
     pub fn loadFEN(&mut self, fenStr : &str) {
         let mut x : usize = 0;
         let mut y : usize = 9;
@@ -89,7 +132,7 @@ impl BoardState {
             }
             match cara {
                 'p' | 'P' | 'a' | 'A' | 'e' | 'E' | 'h' | 'H' | 'c' | 'C' | 'r' | 'R' | 'k' | 'K'  => {
-                    _ = self.squares[y][x].piece.insert(Piece::new(cara));
+                    _ = self.spawnPiece(cara,(x,y));
                 },
                 ' ' => break,
                 _ => {}
@@ -137,7 +180,7 @@ impl BoardState {
         for (index, arr) in self.squares.iter().rev().enumerate() {
             let mut number = 0;
             for tile in arr {
-                if tile.piece.is_none() {
+                if tile.pieceIndex.is_none() {
                     number += 1;
                     continue;
                 }
@@ -146,8 +189,7 @@ impl BoardState {
                     fenString.push(from_digit(number, 10).unwrap_or('1'));
                     number = 0;
                 }
-                let piece : &Piece = tile.piece.as_ref().unwrap();
-                fenString.push(piece.getChar());
+                fenString.push(tile.pieceIndex.as_ref().unwrap().asChar());
             }
             if number != 0 { // push the number
                 fenString.push(from_digit(number, 10).unwrap_or('1'));
@@ -172,11 +214,11 @@ impl BoardState {
         //print!("Position value: {}\n",self.getValue());
         for arr in self.squares.iter().rev() {
             for tile in arr {
-                if tile.piece.is_none() {
+                if tile.pieceIndex.is_none() {
                     print!("-");
                     continue;
                 }
-                print!("{}",tile.piece.as_ref().unwrap().getChar());
+                print!("{}",tile.pieceIndex.as_ref().unwrap().asChar());
             }
             print!("\n");
         }
@@ -185,45 +227,28 @@ impl BoardState {
     /// Positive value means Red is winning, negative value means Black is winning.
     pub fn getValue(&self) -> f32 {
         let mut sum : f32 = 0f32;
-        let mut foundRedKing : bool = false;
-        let mut foundBlackKing : bool = false;
-        for arr in self.squares.iter() { // TODO: Make this more complicated than just piece value summing
-            for tile in arr {
-                if tile.piece.is_none() {
-                    continue;
-                }
-                let piece : &Piece = &tile.piece.as_ref().unwrap();
-                let mut ourVal: f32 = match piece.pieceType {
-                    PieceType::Pawn => 1f32, // TODO: Increase value after they cross the river
-                    PieceType::Advisor => 2f32,
-                    PieceType::Elephant => 2f32,
-                    PieceType::Horse => 4f32,
-                    PieceType::Cannon => 4.5f32,
-                    PieceType::Rook => 9f32,
-                    PieceType::King => { // We treat this differently :3
-                        if piece.isRed {
-                            foundRedKing = true;
-                            0f32
-                        } else {
-                            foundBlackKing = true;
-                            0f32
-                        }
-                    }
-                };
-                if !piece.isRed {
-                    ourVal *= -1f32;
-                }
-                sum += ourVal;
+
+        for piece in self.IteratePieces(true) {
+            sum += match piece.pieceType {
+                PieceType::Pawn => 1f32, // TODO: Increase value after they cross the river
+                PieceType::Advisor => 2f32,
+                PieceType::Elephant => 2f32,
+                PieceType::Horse => 4f32,
+                PieceType::Cannon => 4.5f32,
+                PieceType::Rook => 9f32,
+                PieceType::King => 0f32 // we handle this differently
             }
         }
-        if !foundBlackKing { // red wins innit
-            if !foundRedKing { // wtf
-                debug_assert!(false);
+        for piece in self.IteratePieces(false) {
+            sum -= match piece.pieceType {
+                PieceType::Pawn => 1f32, // TODO: Increase value after they cross the river
+                PieceType::Advisor => 2f32,
+                PieceType::Elephant => 2f32,
+                PieceType::Horse => 4f32,
+                PieceType::Cannon => 4.5f32,
+                PieceType::Rook => 9f32,
+                PieceType::King => 0f32 // we handle this differently
             }
-            sum = f32::INFINITY;
-        }
-        if !foundRedKing { // black wins innit
-            sum = f32::NEG_INFINITY;
         }
         return sum;
     }
@@ -232,12 +257,13 @@ impl BoardState {
         if x > 8 || y > 9 {
             panic!("wtf");
         }
-        return !self.squares[y][x].piece.is_none() && self.squares[y][x].piece.as_ref().unwrap().isRed == isRed;
+        let tile : &Tile = &self.squares[y][x];
+        return !tile.pieceIndex.is_none() && tile.pieceIndex.as_ref().unwrap().asChar().is_ascii_uppercase() == isRed;
     }
 
-    fn TryMove(&self, x: usize, y: usize, isRed : bool, flagBoard : &mut Vec<(usize,usize)> ) {
+    fn TryMove(&self, x: usize, y: usize, isRed : bool, moveArr : &mut Vec<Coord> ) {
         if !self.IsSameColour(x, y, isRed) {
-            flagBoard.push((x,y));
+            moveArr.push((x,y));
         }
     }
     /// Returns whether the given coordinate is within a palace.
@@ -255,8 +281,8 @@ impl BoardState {
     }
 
     ///NOTE: I'd love for this for be an iterator but iterators MUST be structs in Rust so
-    fn GetRaysFrom(&self, x: usize, y : usize) -> [Vec<((usize, usize), &Tile)>;4] {
-        let mut ret : [Vec<((usize, usize), &Tile)>;4] = Default::default();
+    fn GetRaysFrom(&self, x: usize, y : usize) -> [Vec<(Coord, &Tile)>;4] {
+        let mut ret : [Vec<(Coord, &Tile)>;4] = Default::default();
         //go up
         for i in y+1..=BLACK_ROW {
             ret[0].push(((x,i),&self.squares[i][x]));
@@ -281,38 +307,23 @@ impl BoardState {
         return TileIterator::new(&self.squares);
     }
 
-    pub fn countMoves(&self) -> i32 {
-        let mut count = 0;
-        for (y,arr) in self.squares.iter().enumerate() {
-            for (x,tile) in arr.iter().enumerate() {
-                if tile.piece.is_none() {
-                    continue;
-                }
-                let piece : &Piece = tile.piece.as_ref().unwrap();
-                if piece.isRed != self.isRedTurn {
-                    continue;
-                }
-                let arr = self.getPieceMoves(x, y);
-                //println!("{} has {} moves!",piece,arr.len());
-                count += arr.len();
-            }
+    pub(crate) fn IteratePieces(&self, isRed : bool) -> PieceSetIterator {
+        if isRed {
+            return PieceSetIterator::new(&self.redPieces,true);
         }
-        return count as i32;
+        return PieceSetIterator::new(&self.blackPieces,false);
+    }
+
+    pub fn countMoves(&self) -> i32 {
+        return self.getAllMoves().len() as i32;
     }
 
     ///Coordinates returned are in (x,y) order.
-    pub fn getAllMoves(&self) -> Vec<((usize,usize),(usize,usize))> {
-        let mut ret : Vec<((usize,usize),(usize,usize))> = Default::default();
-        for (startPos,tile) in self.IterateTiles() {
-            if tile.piece.is_none() {
-                continue;
-            }
-            let piece : &Piece = tile.piece.as_ref().unwrap();
-            if piece.isRed != self.isRedTurn {
-                continue;
-            }
-            for endPos in self.getPieceMoves(startPos.0, startPos.1) {
-                ret.push((startPos,endPos));
+    pub fn getAllMoves(&self) -> Vec<(Coord,Coord)> {
+        let mut ret : Vec<(Coord,Coord)> = Default::default();
+        for piece in self.IteratePieces(self.isRedTurn) {
+            for endPos in self.getPieceMoves(&piece) {
+                ret.push((piece.loc,endPos));
             }
         }
         return ret;
@@ -320,48 +331,49 @@ impl BoardState {
 
     ///Creates a new version of the board with the given move played. Implicitly is doing a copy.
     ///Coordinates in (x,y), "from->to" order.
-    pub fn branch(&self, newMove : ((usize,usize),(usize,usize))) -> Self {
+    pub fn branch(&self, newMove : (Coord,Coord)) -> Self {
         let mut ret : Self = self.clone();
-        let mut oldTile : &mut Tile = &mut ret.squares[newMove.0.1][newMove.0.0];
-        ret.squares[newMove.1.1][newMove.1.0].piece = oldTile.piece.take();
+        let oldTile : &mut Tile = &mut ret.squares[newMove.0.1][newMove.0.0];
+        ret.squares[newMove.1.1][newMove.1.0].pieceIndex = oldTile.pieceIndex.take();
         ret.isRedTurn = !ret.isRedTurn;
         ret.plyNumber += 1;
         return ret;
     }
 
     ///Coordinates returned are in (x,y) order.
-    pub fn getPieceMoves(&self, x : usize, y : usize) -> Vec<(usize,usize)> {
-        let mut flagBoard :  Vec<(usize,usize)> = Default::default();
-        let piece : &Piece = self.squares[y][x].piece.as_ref().unwrap();
+    pub fn getPieceMoves(&self, piece : &Piece) -> Vec<Coord> {
+        let mut moveArr :  Vec<Coord> = Default::default();
+        let x = piece.loc.0;
+        let y = piece.loc.1;
         match piece.pieceType { 
             PieceType::Pawn => {
                 if piece.isRed {
                     //forward
                     if y != BLACK_ROW {
-                        self.TryMove(x, y+1, piece.isRed, &mut flagBoard);
+                        self.TryMove(x, y+1, piece.isRed, &mut moveArr);
                     }
                     //sideways
                     if y >= BLACK_RIVER {
                         if x > 0 {
-                            self.TryMove(x-1, y, piece.isRed, &mut flagBoard);
+                            self.TryMove(x-1, y, piece.isRed, &mut moveArr);
                         }
                         if x < 8 {
-                            self.TryMove(x+1, y, piece.isRed, &mut flagBoard);
+                            self.TryMove(x+1, y, piece.isRed, &mut moveArr);
                         }
                     }
 
                 } else {
                     //forward
                     if y != RED_ROW {
-                        self.TryMove(x, y-1, piece.isRed, &mut flagBoard);
+                        self.TryMove(x, y-1, piece.isRed, &mut moveArr);
                     }
                     //sideways
                     if y <= RED_RIVER {
                         if x > 0 {
-                            self.TryMove(x-1, y, piece.isRed, &mut flagBoard);
+                            self.TryMove(x-1, y, piece.isRed, &mut moveArr);
                         }
                         if x < 8 {
-                            self.TryMove(x+1, y, piece.isRed, &mut flagBoard);
+                            self.TryMove(x+1, y, piece.isRed, &mut moveArr);
                         }
                     }
                 }
@@ -371,21 +383,21 @@ impl BoardState {
                 if y != BLACK_ROW {
                     //up & left
                     if BoardState::IsPalace(x-1, y+1) {
-                        self.TryMove(x-1, y+1, piece.isRed, &mut flagBoard);
+                        self.TryMove(x-1, y+1, piece.isRed, &mut moveArr);
                     }
                     //up & right
                     if BoardState::IsPalace(x+1, y+1) {
-                        self.TryMove(x+1, y+1, piece.isRed, &mut flagBoard);
+                        self.TryMove(x+1, y+1, piece.isRed, &mut moveArr);
                     }
                 }
                 if y != RED_ROW {
                     //down & left
                     if BoardState::IsPalace(x-1, y-1) {
-                        self.TryMove(x-1, y-1, piece.isRed, &mut flagBoard);
+                        self.TryMove(x-1, y-1, piece.isRed, &mut moveArr);
                     }
                     //down & right
                     if BoardState::IsPalace(x+1, y-1) {
-                        self.TryMove(x+1, y-1, piece.isRed, &mut flagBoard);
+                        self.TryMove(x+1, y-1, piece.isRed, &mut moveArr);
                     }
                 }
             }
@@ -397,65 +409,65 @@ impl BoardState {
                 match (x,y) {
                     //RED ELEPHANTS
                     (2,0) => {
-                        self.TryMove(0, 2, piece.isRed, &mut flagBoard);
-                        self.TryMove(4, 2, piece.isRed, &mut flagBoard);
+                        self.TryMove(0, 2, piece.isRed, &mut moveArr);
+                        self.TryMove(4, 2, piece.isRed, &mut moveArr);
                     }
                     (6,0) => {
-                        self.TryMove(8, 2, piece.isRed, &mut flagBoard);
-                        self.TryMove(4, 2, piece.isRed, &mut flagBoard);
+                        self.TryMove(8, 2, piece.isRed, &mut moveArr);
+                        self.TryMove(4, 2, piece.isRed, &mut moveArr);
                     }
                     (0,2) => {
-                        self.TryMove(2, 4, piece.isRed, &mut flagBoard);
-                        self.TryMove(2, 0, piece.isRed, &mut flagBoard);
+                        self.TryMove(2, 4, piece.isRed, &mut moveArr);
+                        self.TryMove(2, 0, piece.isRed, &mut moveArr);
                     },
                     (4,2) => {
-                        self.TryMove(2, 4, piece.isRed, &mut flagBoard); //up and left
-                        self.TryMove(6, 4, piece.isRed, &mut flagBoard); //up and right
-                        self.TryMove(2, 0, piece.isRed, &mut flagBoard); //down and left
-                        self.TryMove(6, 0, piece.isRed, &mut flagBoard); //down and right
+                        self.TryMove(2, 4, piece.isRed, &mut moveArr); //up and left
+                        self.TryMove(6, 4, piece.isRed, &mut moveArr); //up and right
+                        self.TryMove(2, 0, piece.isRed, &mut moveArr); //down and left
+                        self.TryMove(6, 0, piece.isRed, &mut moveArr); //down and right
                     },
                     (8,2) => {
-                        self.TryMove(6, 4, piece.isRed, &mut flagBoard);
-                        self.TryMove(6, 0, piece.isRed, &mut flagBoard);
+                        self.TryMove(6, 4, piece.isRed, &mut moveArr);
+                        self.TryMove(6, 0, piece.isRed, &mut moveArr);
                     },
                     (2,4) => {
-                        self.TryMove(0, 2, piece.isRed, &mut flagBoard);
-                        self.TryMove(4, 2, piece.isRed, &mut flagBoard);
+                        self.TryMove(0, 2, piece.isRed, &mut moveArr);
+                        self.TryMove(4, 2, piece.isRed, &mut moveArr);
                     },
                     (6,4) => {
-                        self.TryMove(4, 2, piece.isRed, &mut flagBoard);
-                        self.TryMove(8, 2, piece.isRed, &mut flagBoard);
+                        self.TryMove(4, 2, piece.isRed, &mut moveArr);
+                        self.TryMove(8, 2, piece.isRed, &mut moveArr);
                     },
                     //BLACK ELEPHANTS
                     (2,9) => {
-                        self.TryMove(0, 7, piece.isRed, &mut flagBoard);
-                        self.TryMove(4, 7, piece.isRed, &mut flagBoard);
+                        self.TryMove(0, 7, piece.isRed, &mut moveArr);
+                        self.TryMove(4, 7, piece.isRed, &mut moveArr);
                     }
                     (6,9) => {
-                        self.TryMove(8, 7, piece.isRed, &mut flagBoard);
-                        self.TryMove(4, 7, piece.isRed, &mut flagBoard);
+                        self.TryMove(8, 7, piece.isRed, &mut moveArr);
+                        self.TryMove(4, 7, piece.isRed, &mut moveArr);
                     }
                     (0,7) => {
-                        self.TryMove(2, 5, piece.isRed, &mut flagBoard);
-                        self.TryMove(2, 9, piece.isRed, &mut flagBoard);
+                        self.TryMove(2, 5, piece.isRed, &mut moveArr);
+                        self.TryMove(2, 9, piece.isRed, &mut moveArr);
                     },
                     (4,7) => {
-                        self.TryMove(2, 5, piece.isRed, &mut flagBoard); //up and left
-                        self.TryMove(6, 5, piece.isRed, &mut flagBoard); //up and right
-                        self.TryMove(2, 9, piece.isRed, &mut flagBoard); //down and left
-                        self.TryMove(6, 9, piece.isRed, &mut flagBoard); //down and right
+                        self.TryMove(2, 5, piece.isRed, &mut moveArr); //up and left
+                        self.TryMove(6, 5, piece.isRed, &mut moveArr); //up and right
+                        self.TryMove(2, 9, piece.isRed, &mut moveArr); //down and left
+                        self.TryMove(6, 9, piece.isRed, &mut moveArr); //down and right
                     },
                     (8,7) => {
-                        self.TryMove(6, 5, piece.isRed, &mut flagBoard);
-                        self.TryMove(6, 9, piece.isRed, &mut flagBoard);
+                        self.TryMove(6, 5, piece.isRed, &mut moveArr);
+                        self.TryMove(6, 9, piece.isRed, &mut moveArr);
                     },
                     (2,5) => {
-                        self.TryMove(0, 7, piece.isRed, &mut flagBoard);
-                        self.TryMove(4, 7, piece.isRed, &mut flagBoard);
+                        self.TryMove(0, 7, piece.isRed, &mut moveArr);
+                        self.TryMove(4, 7, piece.isRed, &mut moveArr);
                     },
                     (6,5) => {
-                        self.TryMove(4, 7, piece.isRed, &mut flagBoard);
-                        self.TryMove(8, 7, piece.isRed, &mut flagBoard);
+                        self.TryMove(4, 7, piece.isRed, &mut moveArr);
+                        self.TryMove(8, 7, piece.isRed, &mut moveArr);
                     },
                     _ => {
                         print!("Invalid position for elephant!");
@@ -466,45 +478,45 @@ impl BoardState {
             PieceType::Horse => {
                 //up
                 if y < BLACK_ROW - 1 {
-                    if self.squares[y+1][x].piece.is_none() { // Knights can be blocked in Xiangqi!
+                    if self.squares[y+1][x].pieceIndex.is_none() { // Knights can be blocked in Xiangqi!
                         if x > 0 {
-                            self.TryMove(x-1, y+2, piece.isRed, &mut flagBoard);
+                            self.TryMove(x-1, y+2, piece.isRed, &mut moveArr);
                         }
                         if x < 8 {
-                            self.TryMove(x+1, y+2, piece.isRed, &mut flagBoard);
+                            self.TryMove(x+1, y+2, piece.isRed, &mut moveArr);
                         }
                     }
                 }
                 //left
                 if x > 1 {
-                    if self.squares[y][x-1].piece.is_none() {
+                    if self.squares[y][x-1].pieceIndex.is_none() {
                         if y < BLACK_ROW {
-                            self.TryMove(x-2, y+1, piece.isRed, &mut flagBoard);
+                            self.TryMove(x-2, y+1, piece.isRed, &mut moveArr);
                         }
                         if y > RED_ROW {
-                            self.TryMove(x-2, y-1, piece.isRed, &mut flagBoard);
+                            self.TryMove(x-2, y-1, piece.isRed, &mut moveArr);
                         }
                     }
                 }
                 //down
                 if y > RED_ROW + 1 {
-                    if self.squares[y-1][x].piece.is_none() {
+                    if self.squares[y-1][x].pieceIndex.is_none() {
                         if x > 0 {
-                            self.TryMove(x-1, y-2, piece.isRed, &mut flagBoard);
+                            self.TryMove(x-1, y-2, piece.isRed, &mut moveArr);
                         }
                         if x < 8 {
-                            self.TryMove(x+1, y-2, piece.isRed, &mut flagBoard);
+                            self.TryMove(x+1, y-2, piece.isRed, &mut moveArr);
                         }
                     }
                 }
                 //right
                 if x < 7 {
-                    if self.squares[y][x+1].piece.is_none() {
+                    if self.squares[y][x+1].pieceIndex.is_none() {
                         if y < BLACK_ROW {
-                            self.TryMove(x+2, y+1, piece.isRed, &mut flagBoard);
+                            self.TryMove(x+2, y+1, piece.isRed, &mut moveArr);
                         }
                         if y > RED_ROW {
-                            self.TryMove(x+2, y-1, piece.isRed, &mut flagBoard);
+                            self.TryMove(x+2, y-1, piece.isRed, &mut moveArr);
                         }
                     }
                 }
@@ -514,14 +526,14 @@ impl BoardState {
                     let mut foundHoppable = false;
                     for (pos, tile) in ray {
                         if foundHoppable {
-                            if tile.piece.is_none() {
+                            if tile.pieceIndex.is_none() {
                                 continue;
                             }
-                            self.TryMove(pos.0,pos.1, piece.isRed, &mut flagBoard);
+                            self.TryMove(pos.0,pos.1, piece.isRed, &mut moveArr);
                             break;
                         } else {
-                            if tile.piece.is_none() {
-                                self.TryMove(pos.0, pos.1, piece.isRed, &mut flagBoard);
+                            if tile.pieceIndex.is_none() {
+                                self.TryMove(pos.0, pos.1, piece.isRed, &mut moveArr);
                                 continue;
                             }
                             foundHoppable = true;
@@ -532,8 +544,8 @@ impl BoardState {
             PieceType::Rook => {
                 for ray in self.GetRaysFrom(x,y) {
                     for (pos, tile) in ray {
-                        self.TryMove(pos.0, pos.1, piece.isRed, &mut flagBoard);   
-                        if tile.piece.is_some() {
+                        self.TryMove(pos.0, pos.1, piece.isRed, &mut moveArr);   
+                        if tile.pieceIndex.is_some() {
                             break;
                         }
                     }
@@ -542,24 +554,24 @@ impl BoardState {
             PieceType::King => {
                 //up
                 if y < BLACK_ROW && BoardState::IsPalace(x, y+1) {
-                    self.TryMove(x, y+1, piece.isRed, &mut flagBoard);  
+                    self.TryMove(x, y+1, piece.isRed, &mut moveArr);  
                 }
                 //left
                 if x > 0 && BoardState::IsPalace(x-1, y) {
-                    self.TryMove(x-1, y, piece.isRed, &mut flagBoard);  
+                    self.TryMove(x-1, y, piece.isRed, &mut moveArr);  
                 }
                 //down
                 if y > RED_ROW && BoardState::IsPalace(x, y-1) {
-                    self.TryMove(x, y-1, piece.isRed, &mut flagBoard);  
+                    self.TryMove(x, y-1, piece.isRed, &mut moveArr);  
                 }
                 //right
                 if x < 8 && BoardState::IsPalace(x+1, y) {
-                    self.TryMove(x+1, y, piece.isRed, &mut flagBoard);  
+                    self.TryMove(x+1, y, piece.isRed, &mut moveArr);  
                 }
             }
         }
 
-        return flagBoard;
+        return moveArr;
     }
 }
 
