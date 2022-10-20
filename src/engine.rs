@@ -34,7 +34,7 @@ impl Engine {
 
     fn _eval(&mut self, state : BoardState, depth : i32, blackBestAbove : &ScoreF32, redBestAbove : &ScoreF32) -> ScoreF32 {
         if depth == 0 {
-            return ScoreF32::new(state.getValue());
+            return state.getValue();
         }
         /*
         if redBestAbove != INVALID_POS {

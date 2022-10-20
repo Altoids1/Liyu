@@ -3,6 +3,7 @@ pub mod piece;
 pub mod tile;
 use piece::{PieceType,Piece};
 use tile::{Tile,TileIterator,PieceIndex};
+use crate::engine::score::{ScoreF32,INVALID_POS};
 
 use self::piece::{PieceSet, PieceSetIterator};
 
@@ -225,8 +226,9 @@ impl BoardState {
     }
     /// Returns the value of the position w/o depth evaluation; the "aesthetic" value of the board.
     /// Positive value means Red is winning, negative value means Black is winning.
-    pub fn getValue(&self) -> f32 {
+    pub fn getValue(&self) -> ScoreF32 {
         let mut sum : f32 = 0f32;
+        let mut foundKings = 0;
 
         for piece in self.IteratePieces(true) {
             sum += match piece.pieceType {
@@ -236,7 +238,7 @@ impl BoardState {
                 PieceType::Horse => 4f32,
                 PieceType::Cannon => 4.5f32,
                 PieceType::Rook => 9f32,
-                PieceType::King => 0f32 // we handle this differently
+                PieceType::King => {foundKings+=1; 0f32} // we handle this differently
             }
         }
         for piece in self.IteratePieces(false) {
@@ -247,10 +249,13 @@ impl BoardState {
                 PieceType::Horse => 4f32,
                 PieceType::Cannon => 4.5f32,
                 PieceType::Rook => 9f32,
-                PieceType::King => 0f32 // we handle this differently
+                PieceType::King => {foundKings+=1; 0f32} // we handle this differently
             }
         }
-        return sum;
+        if foundKings != 2 {
+            return INVALID_POS;
+        }
+        return ScoreF32::new(sum);
     }
 
     fn IsSameColour(&self, x: usize, y : usize, isRed : bool) -> bool {
