@@ -3,7 +3,8 @@ pub mod piece;
 pub mod tile;
 use piece::{PieceType,Piece};
 use tile::{Tile,TileIterator,PieceIndex};
-use crate::engine::score::{ScoreF32,INVALID_POS};
+use crate::engine::score::ScoreF32;
+use crate::engine::score;
 
 use self::piece::{PieceSet, PieceSetIterator};
 
@@ -175,6 +176,12 @@ impl BoardState {
         if !self.isRedTurn { // black's move, so we have 1 extra ply :)
             self.plyNumber += 1;
         }
+        if self.redPieces.King == DEAD_PIECE_COORD {
+            panic!("Invalid FEN: Red King is missing");
+        }
+        if self.blackPieces.King == DEAD_PIECE_COORD {
+            panic!("Invalid FEN: Black King is missing");
+        }
 
         debug_assert!(self.plyNumber % 2 != (self.isRedTurn as i32)); // ply is even when it's Red's turn and odd when it's Black's
 
@@ -235,6 +242,8 @@ impl BoardState {
     pub fn getValue(&self) -> ScoreF32 {
         let mut sum : f32 = 0f32;
         let mut foundKings = 0;
+        let mut foundRed : bool = false;
+        let mut foundBlack : bool = false;
 
         for piece in self.IteratePieces(true) {
             sum += match piece.pieceType {
@@ -244,7 +253,7 @@ impl BoardState {
                 PieceType::Horse => 4f32,
                 PieceType::Cannon => 4.5f32,
                 PieceType::Rook => 9f32,
-                PieceType::King => {foundKings+=1; 0f32} // we handle this differently
+                PieceType::King => {foundKings+=1;foundRed = true; 0f32} // we handle this differently
             }
         }
         for piece in self.IteratePieces(false) {
@@ -255,11 +264,17 @@ impl BoardState {
                 PieceType::Horse => 4f32,
                 PieceType::Cannon => 4.5f32,
                 PieceType::Rook => 9f32,
-                PieceType::King => {foundKings+=1; 0f32} // we handle this differently
+                PieceType::King => {foundKings+=1;foundBlack = true; 0f32} // we handle this differently
             }
         }
-        if foundKings != 2 {
-            return INVALID_POS;
+        if foundKings > 2 {
+            return score::INVALID_POS;
+        }
+        if !foundBlack {
+            return score::RED_WON;
+        }
+        if !foundRed {
+            return score::BLACK_WON;
         }
         return ScoreF32::new(sum);
     }
@@ -344,8 +359,7 @@ impl BoardState {
     ///Coordinates in (x,y), "from->to" order.
     pub fn branch(&self, newMove : (Coord,Coord)) -> Self {
         let mut ret : Self = self.clone();
-        let oldTile : &mut Tile = &mut ret.squares[newMove.0.1][newMove.0.0];
-        ret.squares[newMove.1.1][newMove.1.0].pieceIndex = oldTile.pieceIndex.take();
+        ret.updatePieceLoc(newMove);
         ret.isRedTurn = !ret.isRedTurn;
         ret.plyNumber += 1;
         return ret;

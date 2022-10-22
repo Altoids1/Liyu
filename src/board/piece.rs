@@ -133,7 +133,7 @@ impl<'a> PieceSetIterator<'a> {
 impl<'a> Iterator for PieceSetIterator<'a> {
     type Item = Piece;
     fn next(&mut self) -> Option<Self::Item> {
-        let mut ret: Piece = match self.index {
+         let mut ret: Piece = match self.index {
             0 => Piece::new('k',self.setRef.King),
             1 => Piece::new('r',self.setRef.Rooks[0]),
             2 => Piece::new('r',self.setRef.Rooks[1]),
@@ -148,6 +148,10 @@ impl<'a> Iterator for PieceSetIterator<'a> {
             11..=15 => Piece::new('p',self.setRef.Pawns[self.index - 11usize]),
             _ => return None
         };
+        if ret.loc == DEAD_PIECE_COORD {
+            self.index +=1;
+            return self.next(); // Bad to do it this way but it is the cleanest
+        }
         ret.isRed = self.isRed;
         self.index +=1;
         return Some(ret);

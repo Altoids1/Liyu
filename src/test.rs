@@ -47,7 +47,18 @@ pub fn tileiterator_asserts() {
 #[test]
 pub fn engine_starting_position() {
     let starting_board = board::BoardState::new();
-    let displayResult = format!("{}",engine::Engine::evalToDepth(&starting_board,3));
+    let score = engine::Engine::evalToDepth(&starting_board,3);
+    let displayResult = format!("{}",score);
+    //we can't make too many assertions about what the engine thinks about the starting position,
+    //but there are a few obvious things we can do here
+    assert_ne!(score,INVALID_POS);
     assert_ne!(displayResult,"inf");
     assert_ne!(displayResult,"-inf");
+}
+
+#[test]
+pub fn engine_mated_position() {
+    let mate_one = board::BoardState::new_from_FEN("R3k4/R8/9/9/9/9/9/9/9/5K3 b - - 0 22"); // backrank mate
+    let mate_one_score = engine::Engine::evalToDepth(&mate_one, 4);
+    assert_eq!(mate_one_score,RED_WON);
 }
