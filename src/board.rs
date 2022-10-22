@@ -247,7 +247,14 @@ impl BoardState {
 
         for piece in self.IteratePieces(true) {
             sum += match piece.pieceType {
-                PieceType::Pawn => 1f32, // TODO: Increase value after they cross the river
+                PieceType::Pawn => {
+                    if piece.loc.1 >= BLACK_RIVER {
+                        2f32
+                    }
+                    else {
+                        1f32
+                    }
+                },
                 PieceType::Advisor => 2f32,
                 PieceType::Elephant => 2f32,
                 PieceType::Horse => 4f32,
@@ -258,7 +265,14 @@ impl BoardState {
         }
         for piece in self.IteratePieces(false) {
             sum -= match piece.pieceType {
-                PieceType::Pawn => 1f32, // TODO: Increase value after they cross the river
+                PieceType::Pawn => {
+                    if piece.loc.1 <= RED_RIVER {
+                        2f32
+                    }
+                    else {
+                        1f32
+                    }
+                },
                 PieceType::Advisor => 2f32,
                 PieceType::Elephant => 2f32,
                 PieceType::Horse => 4f32,
