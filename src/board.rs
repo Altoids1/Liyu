@@ -79,17 +79,23 @@ impl BoardState {
         return ret.unwrap_or(1);
     }
 
-    /// helper of a helper of a helper; for placePiece's eyes only, really.
-    fn spawnSpecificPiece<const N: usize>(arr : &mut [(usize,usize);N], coord : &Coord, cara : char) {
+    /// Helper of a helper of a helper; for placePiece's eyes only, really.
+    fn spawnSpecificPiece<const N: usize>(arr : &mut [(usize,usize);N], coord : &Coord) {
+        return BoardState::setSpecificPiece(arr, coord, &DEAD_PIECE_COORD);
+    }
+
+    /// Four layers deep of helping, here. Finds the piece in this array that is that the target coordinate and sets its new value.
+    fn setSpecificPiece<const N: usize>(arr : &mut [(usize,usize);N], coord : &Coord, targetCoord : &Coord) {
         for (i,oldCoord) in arr.into_iter().enumerate() {
-            if *oldCoord == DEAD_PIECE_COORD {
+            if *oldCoord == *targetCoord {
                 arr[i] = *coord;
                 return;
             }
         }
-        panic!("Too many of a certain piece in FEN!");
+        panic!("Can't find target piece! Agh"); // FIXME: Improve error handling.
     }
 
+    ///To be used exclusively by the FEN reader. Does checking to ensure there aren't too many of any particular piece
     fn spawnPiece(&mut self, cara : char, coord : Coord ) {
         let set : &mut PieceSet;
         let piece : Piece = Piece::new(cara,coord);
@@ -104,12 +110,12 @@ impl BoardState {
                 set.King = piece.loc;
                 self.squares[coord.1][coord.0].pieceIndex = Some(PieceIndex::new(cara));
             },
-            PieceType::Rook => Self::spawnSpecificPiece(&mut set.Rooks,&piece.loc, cara),
-            PieceType::Cannon => Self::spawnSpecificPiece(&mut set.Cannons,&piece.loc, cara),
-            PieceType::Horse => Self::spawnSpecificPiece(&mut set.Horses,&piece.loc, cara),
-            PieceType::Elephant => Self::spawnSpecificPiece(&mut set.Elephants,&piece.loc, cara),
-            PieceType::Advisor => Self::spawnSpecificPiece(&mut set.Advisors,&piece.loc, cara),
-            PieceType::Pawn => Self::spawnSpecificPiece(&mut set.Pawns,&piece.loc, cara),
+            PieceType::Rook => Self::spawnSpecificPiece(&mut set.Rooks,&piece.loc),
+            PieceType::Cannon => Self::spawnSpecificPiece(&mut set.Cannons,&piece.loc),
+            PieceType::Horse => Self::spawnSpecificPiece(&mut set.Horses,&piece.loc),
+            PieceType::Elephant => Self::spawnSpecificPiece(&mut set.Elephants,&piece.loc),
+            PieceType::Advisor => Self::spawnSpecificPiece(&mut set.Advisors,&piece.loc),
+            PieceType::Pawn => Self::spawnSpecificPiece(&mut set.Pawns,&piece.loc),
         };
     }
 
@@ -345,11 +351,56 @@ impl BoardState {
         return ret;
     }
 
+    pub fn hasKing(&self) -> bool {
+        if self.isRedTurn {
+            return self.redPieces.King != DEAD_PIECE_COORD;
+        }
+        return self.blackPieces.King != DEAD_PIECE_COORD;
+    }
+
+    fn updatePieceLoc(&mut self, newMove : (Coord,Coord)) { // FIXME: Needs to be made faster.
+        //Update the tile
+        let cara : char;
+        if newMove.1 != DEAD_PIECE_COORD { // If we're not moving this piece to heck
+            if self.squares[newMove.1.1][newMove.1.0].pieceIndex.as_ref().is_some() { // if a piece is already there
+                self.isRedTurn = !self.isRedTurn; // FIXME: wtf
+                self.updatePieceLoc((newMove.1,DEAD_PIECE_COORD)); // move it to heck
+                self.isRedTurn = !self.isRedTurn; // FIXME: ditto
+            }
+            let oldTile : &mut Tile = &mut self.squares[newMove.0.1][newMove.0.0];
+            self.squares[newMove.1.1][newMove.1.0].pieceIndex = oldTile.pieceIndex.take();
+            debug_assert!(self.squares[newMove.1.1][newMove.1.0].pieceIndex.is_some());
+            cara = self.squares[newMove.1.1][newMove.1.0].pieceIndex.as_ref().unwrap().cara.to_ascii_lowercase();
+        } else {
+            cara = self.squares[newMove.0.1][newMove.0.0].pieceIndex.as_ref().unwrap().cara.to_ascii_lowercase();
+        }
+        //Update the PieceSet location
+        let set : &mut PieceSet;
+        if self.isRedTurn {
+            set = &mut self.redPieces;
+        } else {
+            set = &mut self.blackPieces;
+        };
+        match cara {
+            'k' => {
+                set.King = newMove.1;
+            },
+            'r' => Self::setSpecificPiece(&mut set.Rooks,&newMove.1,&newMove.0),
+            'c' => Self::setSpecificPiece(&mut set.Cannons,&newMove.1,&newMove.0),
+            'h' => Self::setSpecificPiece(&mut set.Horses,&newMove.1,&newMove.0),
+            'e' => Self::setSpecificPiece(&mut set.Elephants,&newMove.1,&newMove.0),
+            'a' => Self::setSpecificPiece(&mut set.Advisors,&newMove.1,&newMove.0),
+            'p' => Self::setSpecificPiece(&mut set.Pawns,&newMove.1,&newMove.0),
+            _ => unreachable!()
+        };
+    }
+
     ///Coordinates returned are in (x,y) order.
     pub fn getPieceMoves(&self, piece : &Piece) -> Vec<Coord> {
         let mut moveArr :  Vec<Coord> = Default::default();
         let x = piece.loc.0;
         let y = piece.loc.1;
+        debug_assert_ne!(DEAD_PIECE_COORD,piece.loc);
         match piece.pieceType { 
             PieceType::Pawn => {
                 if piece.isRed {
