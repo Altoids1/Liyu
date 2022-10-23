@@ -25,6 +25,11 @@ pub fn ruleset_branch() { // Tests that, like, moving pieces around works
     assert_eq!(starting_board.writeFEN(),"rheakaehr/9/1c5c1/p1p1p1p1p/9/P8/2P1P1P1P/1C5C1/9/RHEAKAEHR b - - 0 1");
 }
 
+#[test]
+pub fn ruleset_shy_general() { // Tests that the shy general rule works
+    let board = board::BoardState::new_from_FEN("3k5/9/9/4p4/9/9/4P4/9/9/4K4 w - - 0 1");
+    assert_eq!(board.countMoves(),3);
+}
 
 #[test]
 pub fn score_test() {

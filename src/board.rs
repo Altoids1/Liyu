@@ -648,22 +648,51 @@ impl BoardState {
                 if y < BLACK_ROW && BoardState::IsPalace(x, y+1) {
                     self.TryMove(x, y+1, piece.isRed, &mut moveArr);  
                 }
-                //left
-                if x > 0 && BoardState::IsPalace(x-1, y) {
-                    self.TryMove(x-1, y, piece.isRed, &mut moveArr);  
-                }
                 //down
                 if y > RED_ROW && BoardState::IsPalace(x, y-1) {
                     self.TryMove(x, y-1, piece.isRed, &mut moveArr);  
                 }
+                
+                //left
+                if x > 0 && BoardState::IsPalace(x-1, y) && !self.shyKing(x-1,y, piece.isRed) {
+                    self.TryMove(x-1, y, piece.isRed, &mut moveArr);  
+                }
                 //right
-                if x < 8 && BoardState::IsPalace(x+1, y) {
+                if x < 8 && BoardState::IsPalace(x+1, y) && !self.shyKing(x+1,y, piece.isRed){
                     self.TryMove(x+1, y, piece.isRed, &mut moveArr);  
                 }
             }
-        }
+        };
 
         return moveArr;
+    }
+
+    ///Determines whether the shy general rule would prevent this king from moving laterally to the given location.
+    fn shyKing(&self, x: usize, y : usize, isRed : bool) -> bool {
+        let enemyKingCoords : &Coord;
+        if isRed {
+            enemyKingCoords = &self.blackPieces.King;
+            if x != enemyKingCoords.0 {
+                return false;
+            }
+            for march_y in y..enemyKingCoords.1 {
+                if self.squares[march_y][x].pieceIndex.is_some() {
+                    return false;
+                }
+            }
+            return true;
+        } else {
+            enemyKingCoords = &self.redPieces.King;
+            if x != enemyKingCoords.0 {
+                return false;
+            }
+            for march_y in enemyKingCoords.1+1..y {
+                if self.squares[march_y][x].pieceIndex.is_some() {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 }
 
