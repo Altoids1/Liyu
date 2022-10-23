@@ -62,3 +62,10 @@ pub fn engine_mated_position() {
     let mate_one_score = engine::Engine::evalToDepth(&mate_one, 4);
     assert_eq!(mate_one_score,RED_WON);
 }
+
+#[test]
+pub fn engine_mate_in_one() {
+    let mate_one = board::BoardState::new_from_FEN("2eakaer1/4h4/4H1h2/p1P1p1p1p/9/8P/P5P2/E3C1H1C/6r2/3AKAE1R r - - 0 22"); // smothered mate
+    let mate_one_score = engine::Engine::evalToDepth(&mate_one, 4);
+    assert_eq!(mate_one_score,RED_WON);
+}
