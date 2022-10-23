@@ -1,4 +1,4 @@
-use std::{char::from_digit,fmt,borrow::Cow};
+use std::{char::from_digit,fmt};
 pub mod piece;
 pub mod tile;
 use piece::{PieceType,Piece};
@@ -140,11 +140,17 @@ impl BoardState {
             }
             match cara {
                 'p' | 'P' | 'a' | 'A' | 'e' | 'E' | 'h' | 'H' | 'c' | 'C' | 'r' | 'R' | 'k' | 'K'  => {
-                    _ = self.spawnPiece(cara,(x,y));
+                    self.spawnPiece(cara,(x,y));
                 },
+                'N' => {
+                    self.spawnPiece('H',(x,y));
+                }
+                'n' => {
+                    self.spawnPiece('h',(x,y));
+                }
                 ' ' => break,
                 _ => {}
-            }
+            };
             x+=1;
         }
         if y != 0 || x != 9 {
@@ -343,6 +349,7 @@ impl BoardState {
         return ret;
     }
 
+    #[allow(dead_code)] // Just nice to have even if unused atm
     pub fn IterateTiles(&self) -> TileIterator {
         return TileIterator::new(&self.squares);
     }
@@ -354,6 +361,7 @@ impl BoardState {
         return PieceSetIterator::new(&self.blackPieces,false);
     }
 
+    #[allow(dead_code)] // Needed for tests
     pub fn countMoves(&self) -> i32 {
         return self.getAllMoves().len() as i32;
     }

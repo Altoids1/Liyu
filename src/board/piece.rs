@@ -40,10 +40,10 @@ impl Piece {
             'E' => {
                 return Piece {pieceType : PieceType::Elephant, isRed : true, loc : newLocation};
             },
-            'h' => {
+            'h' | 'n' => {
                 return Piece {pieceType : PieceType::Horse, isRed : false, loc : newLocation};
             },
-            'H' => {
+            'H' | 'N' => {
                 return Piece {pieceType : PieceType::Horse, isRed : true, loc : newLocation};
             },
             'c' => {
