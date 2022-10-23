@@ -40,7 +40,7 @@ fn main() {
             continue;
         }
         match words[0] {
-            "h" | "help" | "HELP" => {
+            "h" | "H" | "help" | "HELP" => {
                 say!("Available commands:\n");
                 say!("'fen [FenString]' - loads in a new position from a valid FEN string.\n");
                 say!("'eval [Depth=3]' - returns the current evaluation of the position.\n");
@@ -72,7 +72,7 @@ fn main() {
                 }
                 say!("Current evaluation: {}",engine::Engine::evalToDepth(&boardPosition, depth));
             }
-            "display" | "DISPLAY" => {
+            "d" | "D" | "display" | "DISPLAY" => {
                 boardPosition.Display();
             }
             "quit" | "q" | "QUIT" => {
