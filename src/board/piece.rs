@@ -134,18 +134,18 @@ impl<'a> Iterator for PieceSetIterator<'a> {
     type Item = Piece;
     fn next(&mut self) -> Option<Self::Item> {
          let mut ret: Piece = match self.index {
-            0 => Piece::new('k',self.setRef.King),
-            1 => Piece::new('r',self.setRef.Rooks[0]),
-            2 => Piece::new('r',self.setRef.Rooks[1]),
-            3 => Piece::new('c',self.setRef.Cannons[0]),
-            4 => Piece::new('c',self.setRef.Cannons[1]),
-            5 => Piece::new('h',self.setRef.Horses[0]),
-            6 => Piece::new('h',self.setRef.Horses[1]),
-            7 => Piece::new('e',self.setRef.Elephants[0]),
-            8 => Piece::new('e',self.setRef.Elephants[1]),
-            9 => Piece::new('a',self.setRef.Advisors[0]),
-            10 => Piece::new('a',self.setRef.Advisors[1]),
-            11..=15 => Piece::new('p',self.setRef.Pawns[self.index - 11usize]),
+            0 => Piece::new('r',self.setRef.Rooks[0]),
+            1 => Piece::new('r',self.setRef.Rooks[1]),
+            2 => Piece::new('c',self.setRef.Cannons[0]),
+            3 => Piece::new('c',self.setRef.Cannons[1]),
+            4 => Piece::new('h',self.setRef.Horses[0]),
+            5 => Piece::new('h',self.setRef.Horses[1]),
+            6 => Piece::new('e',self.setRef.Elephants[0]),
+            7 => Piece::new('e',self.setRef.Elephants[1]),
+            8..=12 => Piece::new('p',self.setRef.Pawns[self.index - 8usize]),
+            13 => Piece::new('k',self.setRef.King),
+            14 => Piece::new('a',self.setRef.Advisors[0]),
+            15 => Piece::new('a',self.setRef.Advisors[1]),
             _ => return None
         };
         if ret.loc == DEAD_PIECE_COORD {
