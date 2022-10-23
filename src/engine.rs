@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, cmp::Ordering};
 use std::time::Instant;
-use crate::{board::{BoardState, piece::PieceType}, engine::score::INVALID_POS};
+use crate::{board::{BoardState, Coord}, engine::score::INVALID_POS};
 
 use self::score::{ScoreF32, RED_WON,BLACK_WON};
 
@@ -27,6 +27,35 @@ impl Engine {
         return ret;
     }
 
+    ///Lower is better.
+    fn capture_priority(cara :char) -> i32 {
+        match cara {
+            'k' => 0,
+            'r' => 1,
+            'c' => 2,
+            'h' => 3,
+            'e' => 4,
+            'a' => 5,
+            'p' => 6,
+            _ => 7,
+        }
+    }
+
+    ///Looks at moves A and B and decides which should be evaluated first.
+    fn sort_moves(state : &BoardState, a : &(Coord,Coord), b : &(Coord,Coord)) -> std::cmp::Ordering {
+        //Does A capture anything?
+        if state.squares[a.1.1][a.1.0].pieceIndex.is_some() {
+            //If B doesn't
+            if !state.squares[b.1.1][b.1.0].pieceIndex.is_some() {
+                return Ordering::Less; // then A should be first
+            }
+            let caraAlpha : char = state.squares[a.1.1][a.1.0].pieceIndex.as_ref().unwrap().asChar().to_ascii_lowercase();
+            let caraBeta : char = state.squares[b.1.1][b.1.0].pieceIndex.as_ref().unwrap().asChar().to_ascii_lowercase();
+            return Self::capture_priority(caraAlpha).cmp(&Self::capture_priority(caraBeta));
+        }
+        return Ordering::Less; // Preserve old order, I guess!
+    }
+
     fn _eval(&mut self, state : BoardState, depth : i32, blackBestAbove : &ScoreF32, redBestAbove : &ScoreF32) -> ScoreF32 {
         if depth == 0 {
             return state.getValue();
@@ -36,7 +65,10 @@ impl Engine {
             debug_assert!(blackBestAbove <= redBestAbove, "red's best was not higher than black's? {blackBestAbove},{redBestAbove}");
         }
         */
-        let moves = state.getAllMoves();
+        let mut moves = state.getAllMoves();
+        moves.sort_unstable_by(|a,b| { // Awkward to wrap this function call in a closure but whaaatever
+            Self::sort_moves(&state, a, b)
+        });
         if moves.is_empty() { // Current player has no moves (and ergo has lost, either by stalemate or checkmate)
             if state.isRedTurn {
                 return score::BLACK_WON;

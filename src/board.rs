@@ -8,7 +8,7 @@ use crate::engine::score;
 
 use self::piece::{PieceSet, PieceSetIterator};
 
-type Coord = (usize,usize);
+pub type Coord = (usize,usize);
 const DEAD_PIECE_COORD : Coord = (usize::MAX,usize::MAX);
 
 /// Is all the information necessary to define a particular state of the board.

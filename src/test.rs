@@ -69,3 +69,11 @@ pub fn engine_mate_in_one() {
     let mate_one_score = engine::Engine::evalToDepth(&mate_one, 4);
     assert_eq!(mate_one_score,RED_WON);
 }
+
+#[test]
+#[ignore] // Too slow right now!
+pub fn engine_mate_in_two() {
+    let mate_two = board::BoardState::new_from_FEN("4P4/4ak3/1r4N2/6p1p/4c4/6P2/Pc3r2P/4CR3/4A4/1RBK1ABN1 w - - 0 1"); // Mate in two (with pins)
+    let mate_two_score = engine::Engine::evalToDepth(&mate_two, 6);
+    assert_eq!(mate_two_score,RED_WON);
+}
