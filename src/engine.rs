@@ -30,29 +30,31 @@ impl Engine {
     ///Lower is better.
     fn capture_priority(cara :char) -> i32 {
         match cara {
-            'k' => 0,
-            'r' => 1,
-            'c' => 2,
-            'h' => 3,
-            'e' => 4,
-            'a' => 5,
-            'p' => 6,
+            'k'|'K' => 0,
+            'r'|'R' => 1,
+            'c'|'C' => 2,
+            'h'|'H' => 3,
+            'e'|'E' => 4,
+            'a'|'A' => 5,
+            'p'|'P' => 6,
             _ => 7,
         }
     }
 
     ///Looks at moves A and B and decides which should be evaluated first.
     fn sort_moves(state : &BoardState, a : &(Coord,Coord), b : &(Coord,Coord)) -> std::cmp::Ordering {
-        //Does A capture anything?
-        if state.squares[a.1.1][a.1.0].pieceIndex.is_some() {
-            //If B doesn't
-            if !state.squares[b.1.1][b.1.0].pieceIndex.is_some() {
-                return Ordering::Less; // then A should be first
+        //Does B capture anything?
+        if state.squares[b.1.1][b.1.0].pieceIndex.is_some() {
+            //If A doesn't capture yet B does capture
+            if state.squares[a.1.1][a.1.0].pieceIndex.is_none() {
+                return Ordering::Greater; // then B should be first
             }
-            let caraAlpha : char = state.squares[a.1.1][a.1.0].pieceIndex.as_ref().unwrap().asChar().to_ascii_lowercase();
-            let caraBeta : char = state.squares[b.1.1][b.1.0].pieceIndex.as_ref().unwrap().asChar().to_ascii_lowercase();
+            //if both capture, we have a priority system
+            let caraAlpha : char = state.squares[a.1.1][a.1.0].pieceIndex.as_ref().unwrap().asChar();
+            let caraBeta : char = state.squares[b.1.1][b.1.0].pieceIndex.as_ref().unwrap().asChar();
             return Self::capture_priority(caraAlpha).cmp(&Self::capture_priority(caraBeta));
         }
+        //If B doesn't capture anything, then whatever A is, it should go first.
         return Ordering::Less; // Preserve old order, I guess!
     }
 
