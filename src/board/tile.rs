@@ -1,6 +1,3 @@
-use std::ops::Range;
-
-use super::piece::Piece;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Tile

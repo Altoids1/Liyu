@@ -44,9 +44,10 @@ pub fn score_test() {
 }
 
 #[test]
-pub fn tileiterator_asserts() {
+pub fn iterator_asserts() { // Tests that iterating tiles & pieces both work :)
     let starting_board = board::BoardState::new();
     assert_eq!(starting_board.IterateTiles().count(),90);
+    assert_eq!(starting_board.IteratePieces(starting_board.isRedTurn).count(),16);
 }
 
 #[test]
