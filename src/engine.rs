@@ -1,10 +1,11 @@
+pub mod score;
+pub mod packedmove;
+
 use std::{collections::HashMap, cmp::Ordering};
 use std::time::Instant;
 use crate::{board::{BoardState, Coord}, engine::score::INVALID_POS};
 
 use self::score::{ScoreF32, RED_WON,BLACK_WON};
-
-pub mod score;
 
 pub struct Engine
 {

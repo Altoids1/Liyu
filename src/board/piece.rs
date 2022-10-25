@@ -86,6 +86,13 @@ impl Piece {
     }
 }
 
+impl std::fmt::Display for Piece {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.getChar())
+    }
+}
+
+
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 /// Barebones piecedata holder; only holding their coords. Their type & colour are implied by position & which PieceSet is used.

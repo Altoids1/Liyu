@@ -12,7 +12,7 @@ pub type Coord = (usize,usize);
 const DEAD_PIECE_COORD : Coord = (usize::MAX,usize::MAX);
 
 /// Is all the information necessary to define a particular state of the board.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BoardState
 {
     // first dimension is x (a to i), second is y (1 to 10)
@@ -696,8 +696,11 @@ impl BoardState {
     }
 }
 
-impl fmt::Display for Piece {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.getChar())
+impl std::hash::Hash for BoardState {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.squares.hash(state);
+        self.isRedTurn.hash(state);
+        self.plyNumber.hash(state);
+        //Doesn't need to use the PieceSets since they're actually redundant information :)
     }
 }

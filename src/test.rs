@@ -3,6 +3,7 @@
 
 use crate::board;
 use crate::engine;
+use crate::engine::packedmove::PackedMove;
 use crate::engine::score::{ScoreF32,BLACK_WON,INVALID_POS,RED_WON};
 
 #[test]
@@ -48,6 +49,12 @@ pub fn iterator_asserts() { // Tests that iterating tiles & pieces both work :)
     let starting_board = board::BoardState::new();
     assert_eq!(starting_board.IterateTiles().count(),90);
     assert_eq!(starting_board.IteratePieces(starting_board.isRedTurn).count(),16);
+}
+
+#[test]
+pub fn packedmove_test() {
+    let packer : PackedMove = PackedMove::new_from_Coords(((0,0),(0,1)));
+    assert_eq!(format!("{}",packer),"a1a2");
 }
 
 #[test]
