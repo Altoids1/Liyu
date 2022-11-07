@@ -51,9 +51,18 @@ impl Engine {
                 return Ordering::Greater; // then B should be first
             }
             //if both capture, we have a priority system
-            let caraAlpha : char = state.squares[a.1.1][a.1.0].pieceIndex.as_ref().unwrap().asChar();
-            let caraBeta : char = state.squares[b.1.1][b.1.0].pieceIndex.as_ref().unwrap().asChar();
-            return Self::capture_priority(caraAlpha).cmp(&Self::capture_priority(caraBeta));
+            unsafe {
+                let caraAlpha : char = state.squares[a.1.1][a.1.0].pieceIndex.as_ref().unwrap_unchecked().asChar();
+                let caraBeta : char = state.squares[b.1.1][b.1.0].pieceIndex.as_ref().unwrap_unchecked().asChar();
+                let captureCmp = Self::capture_priority(caraAlpha).cmp(&Self::capture_priority(caraBeta));
+                if captureCmp == Ordering::Equal { // If they're capturing the same tier of piece
+                    let alphaPiece = state.squares[a.0.1][a.0.0].pieceIndex.as_ref().unwrap_unchecked().asChar();
+                    let betaPiece = state.squares[b.0.1][b.0.0].pieceIndex.as_ref().unwrap_unchecked().asChar();
+                    let whoMoreImportant = Self::capture_priority(alphaPiece).cmp(&Self::capture_priority(betaPiece));
+                    return whoMoreImportant.reverse(); // Prefer the attacker of lowest value.
+                }
+                return captureCmp;
+            }
         }
         //If B doesn't capture anything, then whatever A is, it should go first.
         return Ordering::Less; // Preserve old order, I guess!
