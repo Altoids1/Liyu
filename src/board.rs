@@ -1,4 +1,4 @@
-use std::{char::from_digit,fmt};
+use std::{char::from_digit, hint::unreachable_unchecked};
 pub mod piece;
 pub mod tile;
 use piece::{PieceType,Piece};
@@ -263,7 +263,14 @@ impl BoardState {
                 },
                 PieceType::Advisor => 2f32,
                 PieceType::Elephant => 2f32,
-                PieceType::Horse => 4f32,
+                PieceType::Horse => {
+                    match piece.loc.0 {
+                        0 => 3.5f32,
+                        1..=7 => 4f32,
+                        8 => 3.5f32,
+                        _ => unsafe {unreachable_unchecked()}
+                    }
+                },
                 PieceType::Cannon => 4.5f32,
                 PieceType::Rook => 9f32,
                 PieceType::King => {foundKings+=1;foundRed = true; 0f32} // we handle this differently
@@ -281,7 +288,14 @@ impl BoardState {
                 },
                 PieceType::Advisor => 2f32,
                 PieceType::Elephant => 2f32,
-                PieceType::Horse => 4f32,
+                PieceType::Horse => {
+                    match piece.loc.0 {
+                        0 => 3.5f32,
+                        1..=7 => 4f32,
+                        8 => 3.5f32,
+                        _ => unsafe {unreachable_unchecked()}
+                    }
+                },
                 PieceType::Cannon => 4.5f32,
                 PieceType::Rook => 9f32,
                 PieceType::King => {foundKings+=1;foundBlack = true; 0f32} // we handle this differently
