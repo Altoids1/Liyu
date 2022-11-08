@@ -2,14 +2,17 @@
 //#![allow(dead_code)] // Remove this when we're mature :) 
 
 use std::collections::VecDeque;
-use std::env;
 use std::io::{stdin, stdout, Write};
 
 mod board;
 mod test;
 mod engine;
+mod args;
+
+use crate::args::parseArgs;
 
 /// An error handling layer above write! that generically handles all the Result<>s floating around.
+#[macro_export]
 macro_rules! say {
     ($($y:expr),+) => {
         let mut good = false;
@@ -26,7 +29,11 @@ macro_rules! say {
 }
 
 fn main() { 
-    let _args: Vec<String> = env::args().collect(); // First entry is always just like.. a relative path to where we are?
+    
+
+    if parseArgs() { // When called successfully with arguments, we are not interactive.
+        return;
+    }
 
     println!("Liyu - Version {}",env!("CARGO_PKG_VERSION"));
     let mut boardPosition : board::BoardState = board::BoardState::new();
