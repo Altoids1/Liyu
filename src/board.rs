@@ -420,9 +420,9 @@ impl BoardState {
             let oldTile : &mut Tile = &mut self.squares[newMove.0.1][newMove.0.0];
             self.squares[newMove.1.1][newMove.1.0].pieceIndex = oldTile.pieceIndex.take();
             debug_assert!(self.squares[newMove.1.1][newMove.1.0].pieceIndex.is_some());
-            cara = self.squares[newMove.1.1][newMove.1.0].pieceIndex.as_ref().unwrap().cara.to_ascii_lowercase();
+            cara = self.squares[newMove.1.1][newMove.1.0].pieceIndex.as_ref().unwrap().cara;
         } else {
-            cara = self.squares[newMove.0.1][newMove.0.0].pieceIndex.as_ref().unwrap().cara.to_ascii_lowercase();
+            cara = self.squares[newMove.0.1][newMove.0.0].pieceIndex.as_ref().unwrap().cara;
         }
         //Update the PieceSet location
         let set : &mut PieceSet;
@@ -432,15 +432,15 @@ impl BoardState {
             set = &mut self.blackPieces;
         };
         match cara {
-            'k' => {
+            'k'|'K' => {
                 set.King = newMove.1;
             },
-            'r' => Self::setSpecificPiece(&mut set.Rooks,&newMove.1,&newMove.0),
-            'c' => Self::setSpecificPiece(&mut set.Cannons,&newMove.1,&newMove.0),
-            'h' => Self::setSpecificPiece(&mut set.Horses,&newMove.1,&newMove.0),
-            'e' => Self::setSpecificPiece(&mut set.Elephants,&newMove.1,&newMove.0),
-            'a' => Self::setSpecificPiece(&mut set.Advisors,&newMove.1,&newMove.0),
-            'p' => Self::setSpecificPiece(&mut set.Pawns,&newMove.1,&newMove.0),
+            'r'|'R' => Self::setSpecificPiece(&mut set.Rooks,&newMove.1,&newMove.0),
+            'c'|'C' => Self::setSpecificPiece(&mut set.Cannons,&newMove.1,&newMove.0),
+            'h'|'H' => Self::setSpecificPiece(&mut set.Horses,&newMove.1,&newMove.0),
+            'e'|'E' => Self::setSpecificPiece(&mut set.Elephants,&newMove.1,&newMove.0),
+            'a'|'A' => Self::setSpecificPiece(&mut set.Advisors,&newMove.1,&newMove.0),
+            'p'|'P' => Self::setSpecificPiece(&mut set.Pawns,&newMove.1,&newMove.0),
             _ => unreachable!()
         };
     }
