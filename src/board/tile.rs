@@ -47,9 +47,9 @@ impl Tile {
     }
 
     pub const fn hasPiece(&self) -> bool {
-        return self.pieceIndex.cara == '\0';
+        return self.pieceIndex.cara != '\0';
     }
-    
+
     // FIXME:
     //  mutable references are not allowed in constant functions
     //  see issue #57349 <https://github.com/rust-lang/rust/issues/57349> for more information 

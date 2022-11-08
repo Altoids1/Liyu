@@ -2,8 +2,9 @@
 #![cfg(test)]
 
 use crate::board;
+use crate::board::packedmove::PackedCoord;
 use crate::engine;
-use crate::board::packedmove::PackedMove;
+use crate::board::packedmove::{PackedMove,DEAD_PIECE_PACKEDCOORD};
 use crate::engine::score::{ScoreF32,BLACK_WON,INVALID_POS,RED_WON};
 
 #[test]
@@ -16,7 +17,14 @@ pub fn FEN_starting_position() { // Tests that basic reading/writing of FENs wor
 #[test]
 pub fn ruleset_test() { // Tests that, at least in the starting position, we output the correct number of moves.
     let starting_board = board::BoardState::new();
-    assert_eq!(starting_board.countMoves(),44);
+    let cnt = starting_board.countMoves();
+    if cnt != 44 {
+        println!("Inaccurate move count. Expected 44, got {}",cnt);
+        for packedMove in starting_board.getAllMoves() {
+            println!("{}",packedMove);
+        }
+        panic!("Wrong move count!");
+    }
 }
 
 #[test]
@@ -54,7 +62,14 @@ pub fn iterator_asserts() { // Tests that iterating tiles & pieces both work :)
 #[test]
 pub fn packedmove_test() {
     let packer : PackedMove = PackedMove::new_from_Coords(((0,0),(0,1)));
-    assert_eq!(format!("{}",packer),"a1a2");
+    assert_eq!(format!("{}",packer),"a1b1");
+}
+
+#[test]
+pub fn packedcoord_asserts() {
+    let packer : PackedCoord = PackedCoord::new_from_Coord(board::DEAD_PIECE_COORD);
+    assert_eq!(DEAD_PIECE_PACKEDCOORD.data,255u8);
+    assert_eq!(packer.data,255u8);
 }
 
 #[test]
@@ -89,4 +104,12 @@ pub fn engine_mate_in_two() {
     let mate_two = board::BoardState::new_from_FEN("4P4/4ak3/1r4N2/6p1p/4c4/6P2/Pc3r2P/4CR3/4A4/1RBK1ABN1 w - - 0 1"); // Mate in two (with pins)
     let mate_two_score = engine::Engine::evalToDepth(&mate_two, 6);
     assert_eq!(mate_two_score,RED_WON);
+}
+
+#[test]
+#[ignore]
+pub fn engine_mate_in_three() {
+    let mate_three = board::BoardState::new_from_FEN("2C1k4/4a4/4ca3/8R/p8/2P6/P5P1P/4C4/1R2A4/1NBK1ABN1 w - - 0 1");
+    let mate_three_score = engine::Engine::evalToDepth(&mate_three, 6);
+    assert_eq!(mate_three_score,RED_WON);
 }

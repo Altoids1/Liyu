@@ -6,13 +6,14 @@ use piece::{PieceType,Piece};
 use tile::{Tile,TileIterator,PieceIndex};
 use crate::engine::score::ScoreF32;
 use crate::engine::score;
+use crate::say;
 
 use self::piece::{PieceSet, PieceSetIterator};
 use self::packedmove::{PackedMove, PackedCoord,DEAD_PIECE_PACKEDCOORD};
 
 pub type Coord = (usize,usize);
 pub type TileGrid = [[Tile;9];10];
-const DEAD_PIECE_COORD : Coord = (0b1111,0b1111); // Using specifically these values since they max out the data in PackedMove.
+pub const DEAD_PIECE_COORD : Coord = (0b1111,0b1111); // Using specifically these values since they max out the data in PackedMove.
 
 /// Is all the information necessary to define a particular state of the board.
 #[derive(Clone, PartialEq, Eq)]
@@ -318,11 +319,9 @@ impl BoardState {
     }
 
     fn IsSameColour(&self, x: usize, y : usize, isRed : bool) -> bool {
-        if x > 8 || y > 9 {
-            panic!("wtf");
-        }
+        debug_assert!(x < 9 && y < 10, "wtf");
         let tile : &Tile = &self.squares[y][x];
-        return !tile.hasPiece() && tile.pieceIndex.asChar().is_ascii_uppercase() == isRed;
+        return tile.hasPiece() && tile.pieceIndex.asChar().is_ascii_uppercase() == isRed;
     }
 
     fn TryMove(&self, x: usize, y: usize, isRed : bool, moveArr : &mut Vec<Coord> ) {
@@ -455,7 +454,8 @@ impl BoardState {
         let mut moveArr :  Vec<Coord> = Default::default();
         let x = piece.loc.0;
         let y = piece.loc.1;
-        debug_assert_ne!(DEAD_PIECE_COORD,piece.loc);
+        debug_assert_ne!(DEAD_PIECE_COORD.0,piece.loc.0);
+        debug_assert_ne!(DEAD_PIECE_COORD.1,piece.loc.1);
         match piece.pieceType { 
             PieceType::Pawn => {
                 if piece.isRed {
@@ -581,8 +581,7 @@ impl BoardState {
                         self.TryMove(8, 7, piece.isRed, &mut moveArr);
                     },
                     _ => {
-                        print!("Invalid position for elephant!");
-                        debug_assert!(false);
+                        unreachable!("Invalid position for elephant!");
                     }
                 };
             }

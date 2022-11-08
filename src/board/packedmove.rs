@@ -16,9 +16,9 @@ impl PackedMove {
     pub fn new_from_Coords(movePair : (Coord,Coord)) -> Self {
         debug_assert!(movePair.0 != movePair.1);
         let mut datum : u16 = 0;
-        datum |= (movePair.0.0 as u16) & 0b1111 << 12u16;
-        datum |= (movePair.0.1 as u16) & 0b1111 << 8u16;
-        datum |= (movePair.1.0 as u16) & 0b1111 << 4u16;
+        datum |= ((movePair.0.0 as u16) & 0b1111) << 12;
+        datum |= ((movePair.0.1 as u16) & 0b1111) << 8;
+        datum |= ((movePair.1.0 as u16) & 0b1111) << 4;
         datum |= (movePair.1.1 as u16) & 0b1111;
         return Self {
             data : datum
@@ -56,24 +56,24 @@ impl PackedMove {
     }
 
     pub fn start(&self) -> PackedCoord {
-        return PackedCoord { data: (self.data & 0b1111_1111_0000_0000 >> 8) as u8 };
+        return PackedCoord { data: ((self.data & 0b1111_1111_0000_0000) >> 8u16) as u8 };
     }
     pub fn end(&self) -> PackedCoord {
         return PackedCoord { data: (self.data & 0b1111_1111) as u8 };
     }
 
     pub const fn killsPiece(&self) -> bool { // True if the piece moves to an encoded DEAD_PIECE_COORD
-        return self.data & 0b0000_0000_1111_1111u16 == 0b1111_1111u16
+        return (self.data & 0b0000_0000_1111_1111u16) == 0b1111_1111u16;
     }
 }
 
 impl std::fmt::Display for PackedMove {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let x_start = (self.data & 0b1111_0000_0000_0000) >> 12;
-        let y_start = (self.data & 0b0000_1111_0000_0000) >> 8;
-        let x_end = (self.data & 0b0000_0000_1111_0000) >> 4;
+        let x_start = (self.data & 0b1111_0000_0000_0000) >> 12u16;
+        let y_start = (self.data & 0b0000_1111_0000_0000) >> 8u16;
+        let x_end = (self.data & 0b0000_0000_1111_0000) >> 4u16;
         let y_end = self.data & 0b0000_0000_0000_1111;
-        write!(f, "{}{}{}{}", Self::getLetter(x_start),y_start+1,Self::getLetter(x_end),y_end+1)
+        write!(f, "{}{}{}{}", Self::getLetter(y_start),x_start+1,Self::getLetter(y_end),x_end+1)
     }
 }
 
@@ -90,7 +90,7 @@ pub const DEAD_PIECE_PACKEDCOORD : PackedCoord = PackedCoord::new_from_Coord(DEA
 impl PackedCoord {
     pub const fn new_from_Coord(coord : Coord) -> Self {
         return Self {
-            data : ((coord.0 & 0b1111 << 4) | (coord.1 & 0b1111)) as u8
+            data : (((coord.0 & 0b1111) << 4u16) | (coord.1 & 0b1111)) as u8
         };
     }
 
