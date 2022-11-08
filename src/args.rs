@@ -40,6 +40,9 @@ pub fn parseArgs() -> bool {
         return false;
     }
     let args = tryArgs.ok().unwrap();
+    if args.len() < 2 {
+        return false;
+    }
     let mut boardPosition : crate::board::BoardState = crate::board::BoardState::new();
     let mut depth = 6;
     for i in 1..args.len() {
