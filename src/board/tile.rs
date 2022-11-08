@@ -1,9 +1,13 @@
+use super::TileGrid;
+
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Tile
 {
-    pub pieceIndex : Option<PieceIndex>
+    pub pieceIndex : PieceIndex
 }
+
+const NO_PIECE : PieceIndex = PieceIndex::new('\0');
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct PieceIndex {
@@ -11,19 +15,19 @@ pub struct PieceIndex {
 }
 
 impl PieceIndex {
-    pub fn new(c : char) -> Self {
+    pub const fn new(c : char) -> Self {
         return Self {
             cara : c
         };
     }
-    pub fn asChar(&self) -> char {
+    pub const fn asChar(&self) -> char {
         return self.cara;
     }
 }
 
 ///Iterator used to iterate over the tiles of a BoardState.
 pub struct TileIterator<'a> {
-    squaresRef : &'a [[Tile;9];10],
+    squaresRef : &'a TileGrid,
     x : usize,
     y : usize,
     doneFirst : bool // SO DUMB
@@ -31,21 +35,39 @@ pub struct TileIterator<'a> {
 
 impl Tile {
     #[allow(dead_code)] // things need constructors, Rust, god
-    pub fn new() -> Self {
-        return Default::default();
+    pub const fn new() -> Self {
+        return Tile::real_default_because_traits_suck();
+    }
+
+    ///TODO: Get rid of this when they allow functions to be const in traits.
+    const fn real_default_because_traits_suck() -> Self {
+        return Self {
+            pieceIndex: NO_PIECE
+        }
+    }
+
+    pub const fn hasPiece(&self) -> bool {
+        return self.pieceIndex.cara == '\0';
+    }
+    
+    // FIXME:
+    //  mutable references are not allowed in constant functions
+    //  see issue #57349 <https://github.com/rust-lang/rust/issues/57349> for more information 
+    pub fn take(&mut self) -> PieceIndex {
+        let ret = self.pieceIndex.clone();
+        self.pieceIndex = NO_PIECE;
+        return ret;
     }
 }
 
 impl Default for Tile {
     fn default() -> Self {
-        return Self {
-            pieceIndex: Default::default()
-        }
+        return Tile::real_default_because_traits_suck();
     }
 }
 
 impl<'a> TileIterator<'a> {
-    pub fn new(squares : &'a[[Tile;9];10]) -> Self {
+    pub fn new(squares : &'a TileGrid) -> Self {
         return Self {
             squaresRef : squares,
             x : 0,

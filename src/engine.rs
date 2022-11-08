@@ -1,11 +1,11 @@
 pub mod score;
-pub mod packedmove;
 
 use std::{collections::HashMap, cmp::Ordering};
 use std::time::Instant;
-use crate::{board::{BoardState, Coord}, engine::score::INVALID_POS};
+use crate::board::BoardState;
+use crate::board::packedmove::PackedMove;
 
-use self::score::{ScoreF32, RED_WON,BLACK_WON};
+use self::score::{ScoreF32, RED_WON,BLACK_WON,INVALID_POS};
 
 pub struct Engine
 {
@@ -43,26 +43,24 @@ impl Engine {
     }
 
     ///Looks at moves A and B and decides which should be evaluated first.
-    fn sort_moves(state : &BoardState, a : &(Coord,Coord), b : &(Coord,Coord)) -> std::cmp::Ordering {
+    fn sort_moves(state : &BoardState, a : &PackedMove, b : &PackedMove) -> std::cmp::Ordering {
         //Does B capture anything?
-        if state.squares[b.1.1][b.1.0].pieceIndex.is_some() {
+        let betaCaptures : char = PackedMove::indexEnd(&state.squares, b).pieceIndex.asChar();
+        if betaCaptures != '\0' {
+            let alphaCaptures : char = PackedMove::indexEnd(&state.squares, a).pieceIndex.asChar();
             //If A doesn't capture yet B does capture
-            if state.squares[a.1.1][a.1.0].pieceIndex.is_none() {
+            if alphaCaptures == '\0' {
                 return Ordering::Greater; // then B should be first
             }
             //if both capture, we have a priority system
-            unsafe {
-                let caraAlpha : char = state.squares[a.1.1][a.1.0].pieceIndex.as_ref().unwrap_unchecked().asChar();
-                let caraBeta : char = state.squares[b.1.1][b.1.0].pieceIndex.as_ref().unwrap_unchecked().asChar();
-                let captureCmp = Self::capture_priority(caraAlpha).cmp(&Self::capture_priority(caraBeta));
-                if captureCmp == Ordering::Equal { // If they're capturing the same tier of piece
-                    let alphaPiece = state.squares[a.0.1][a.0.0].pieceIndex.as_ref().unwrap_unchecked().asChar();
-                    let betaPiece = state.squares[b.0.1][b.0.0].pieceIndex.as_ref().unwrap_unchecked().asChar();
-                    let whoMoreImportant = Self::capture_priority(alphaPiece).cmp(&Self::capture_priority(betaPiece));
-                    return whoMoreImportant.reverse(); // Prefer the attacker of lowest value.
-                }
-                return captureCmp;
+            let captureCmp = Self::capture_priority(alphaCaptures).cmp(&Self::capture_priority(betaCaptures));
+            if captureCmp == Ordering::Equal { // If they're capturing the same tier of piece
+                let alphaPiece = PackedMove::indexStart(&state.squares, a).pieceIndex.asChar();
+                let betaPiece =  PackedMove::indexStart(&state.squares, b).pieceIndex.asChar();
+                // The comparison order here is reversed to prefer the attacker of lowest value.
+                return Self::capture_priority(betaPiece).cmp(&Self::capture_priority(alphaPiece)); 
             }
+            return captureCmp;
         }
         //If B doesn't capture anything, then whatever A is, it should go first.
         return Ordering::Less; // Preserve old order, I guess!
@@ -91,10 +89,10 @@ impl Engine {
         let mut blackBest : ScoreF32 = RED_WON;
         let mut redBest : ScoreF32 = BLACK_WON;
 
-        for (here,there) in moves { // for every possible move
-            debug_assert!(here.0 < 9);
-            debug_assert!(here.1 < 10);
-            let newBoard = state.branch((here,there)); // apply it to the board
+        for packedMove in moves { // for every possible move
+            //debug_assert!(here.0 < 9);
+            //debug_assert!(here.1 < 10);
+            let newBoard = state.branch(packedMove); // apply it to the board
             self.nodeCount += 1;
             if !newBoard.hasKing() {
                 if state.isRedTurn {

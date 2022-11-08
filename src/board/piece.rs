@@ -1,4 +1,5 @@
-use super::{Coord, DEAD_PIECE_COORD};
+use super::DEAD_PIECE_COORD;
+use super::packedmove::{PackedCoord,DEAD_PIECE_PACKEDCOORD};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum PieceType {
@@ -97,25 +98,25 @@ impl std::fmt::Display for Piece {
 #[derive(Clone, PartialEq, Eq, Hash)]
 /// Barebones piecedata holder; only holding their coords. Their type & colour are implied by position & which PieceSet is used.
 pub(crate) struct PieceSet {
-    pub King : Coord,
-    pub Rooks : [Coord;2],
-    pub Cannons : [Coord;2],
-    pub Horses : [Coord;2],
-    pub Elephants : [Coord;2],
-    pub Advisors : [Coord;2],
-    pub Pawns : [Coord;5]
+    pub King : PackedCoord,
+    pub Rooks : [PackedCoord;2],
+    pub Cannons : [PackedCoord;2],
+    pub Horses : [PackedCoord;2],
+    pub Elephants : [PackedCoord;2],
+    pub Advisors : [PackedCoord;2],
+    pub Pawns : [PackedCoord;5]
 }
 
 impl Default for PieceSet {
     fn default() -> Self {
         return Self {
-            King: DEAD_PIECE_COORD,
-            Rooks: [DEAD_PIECE_COORD,DEAD_PIECE_COORD],
-            Cannons: [DEAD_PIECE_COORD,DEAD_PIECE_COORD],
-            Horses: [DEAD_PIECE_COORD,DEAD_PIECE_COORD],
-            Elephants: [DEAD_PIECE_COORD,DEAD_PIECE_COORD],
-            Advisors: [DEAD_PIECE_COORD,DEAD_PIECE_COORD],
-            Pawns: [DEAD_PIECE_COORD,DEAD_PIECE_COORD,DEAD_PIECE_COORD,DEAD_PIECE_COORD,DEAD_PIECE_COORD]
+            King: DEAD_PIECE_PACKEDCOORD,
+            Rooks: [DEAD_PIECE_PACKEDCOORD,DEAD_PIECE_PACKEDCOORD],
+            Cannons: [DEAD_PIECE_PACKEDCOORD,DEAD_PIECE_PACKEDCOORD],
+            Horses: [DEAD_PIECE_PACKEDCOORD,DEAD_PIECE_PACKEDCOORD],
+            Elephants: [DEAD_PIECE_PACKEDCOORD,DEAD_PIECE_PACKEDCOORD],
+            Advisors: [DEAD_PIECE_PACKEDCOORD,DEAD_PIECE_PACKEDCOORD],
+            Pawns: [DEAD_PIECE_PACKEDCOORD,DEAD_PIECE_PACKEDCOORD,DEAD_PIECE_PACKEDCOORD,DEAD_PIECE_PACKEDCOORD,DEAD_PIECE_PACKEDCOORD]
         };
     }
 }
@@ -141,18 +142,18 @@ impl<'a> Iterator for PieceSetIterator<'a> {
     type Item = Piece;
     fn next(&mut self) -> Option<Self::Item> {
          let mut ret: Piece = match self.index {
-            0 => Piece::new('r',self.setRef.Rooks[0]),
-            1 => Piece::new('r',self.setRef.Rooks[1]),
-            2 => Piece::new('c',self.setRef.Cannons[0]),
-            3 => Piece::new('c',self.setRef.Cannons[1]),
-            4 => Piece::new('h',self.setRef.Horses[0]),
-            5 => Piece::new('h',self.setRef.Horses[1]),
-            6 => Piece::new('e',self.setRef.Elephants[0]),
-            7 => Piece::new('e',self.setRef.Elephants[1]),
-            8..=12 => Piece::new('p',self.setRef.Pawns[self.index - 8usize]),
-            13 => Piece::new('k',self.setRef.King),
-            14 => Piece::new('a',self.setRef.Advisors[0]),
-            15 => Piece::new('a',self.setRef.Advisors[1]),
+            0 => Piece::new('r',self.setRef.Rooks[0].makeCoord()),
+            1 => Piece::new('r',self.setRef.Rooks[1].makeCoord()),
+            2 => Piece::new('c',self.setRef.Cannons[0].makeCoord()),
+            3 => Piece::new('c',self.setRef.Cannons[1].makeCoord()),
+            4 => Piece::new('h',self.setRef.Horses[0].makeCoord()),
+            5 => Piece::new('h',self.setRef.Horses[1].makeCoord()),
+            6 => Piece::new('e',self.setRef.Elephants[0].makeCoord()),
+            7 => Piece::new('e',self.setRef.Elephants[1].makeCoord()),
+            8..=12 => Piece::new('p',self.setRef.Pawns[self.index - 8usize].makeCoord()),
+            13 => Piece::new('k',self.setRef.King.makeCoord()),
+            14 => Piece::new('a',self.setRef.Advisors[0].makeCoord()),
+            15 => Piece::new('a',self.setRef.Advisors[1].makeCoord()),
             _ => return None
         };
         if ret.loc == DEAD_PIECE_COORD {

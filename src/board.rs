@@ -1,22 +1,25 @@
 use std::{char::from_digit, hint::unreachable_unchecked};
 pub mod piece;
 pub mod tile;
+pub mod packedmove;
 use piece::{PieceType,Piece};
 use tile::{Tile,TileIterator,PieceIndex};
 use crate::engine::score::ScoreF32;
 use crate::engine::score;
 
 use self::piece::{PieceSet, PieceSetIterator};
+use self::packedmove::{PackedMove, PackedCoord,DEAD_PIECE_PACKEDCOORD};
 
 pub type Coord = (usize,usize);
-const DEAD_PIECE_COORD : Coord = (usize::MAX,usize::MAX);
+pub type TileGrid = [[Tile;9];10];
+const DEAD_PIECE_COORD : Coord = (0b1111,0b1111); // Using specifically these values since they max out the data in PackedMove.
 
 /// Is all the information necessary to define a particular state of the board.
 #[derive(Clone, PartialEq, Eq)]
 pub struct BoardState
 {
     // first dimension is x (a to i), second is y (1 to 10)
-    pub squares : [[Tile;9];10],
+    pub squares : TileGrid,
     pub isRedTurn : bool,
     pub plyNumber : i32, // Zero-indexed. Either player moving increments this. Even for Red and odd for Black
     pub(crate) redPieces : PieceSet,
@@ -81,12 +84,12 @@ impl BoardState {
     }
 
     /// Helper of a helper of a helper; for placePiece's eyes only, really.
-    fn spawnSpecificPiece<const N: usize>(arr : &mut [(usize,usize);N], coord : &Coord) {
-        return BoardState::setSpecificPiece(arr, coord, &DEAD_PIECE_COORD);
+    fn spawnSpecificPiece<const N: usize>(arr : &mut [PackedCoord;N], coord : &PackedCoord) {
+        return BoardState::setSpecificPiece(arr, coord, &DEAD_PIECE_PACKEDCOORD);
     }
 
     /// Four layers deep of helping, here. Finds the piece in this array that is that the target coordinate and sets its new value.
-    fn setSpecificPiece<const N: usize>(arr : &mut [(usize,usize);N], coord : &Coord, targetCoord : &Coord) {
+    fn setSpecificPiece<const N: usize>(arr : &mut [PackedCoord;N], coord : &PackedCoord, targetCoord : &PackedCoord) {
         for (i,oldCoord) in arr.into_iter().enumerate() {
             if *oldCoord == *targetCoord {
                 arr[i] = *coord;
@@ -105,18 +108,19 @@ impl BoardState {
         } else {
             set = &mut self.blackPieces;
         }
-        self.squares[coord.1][coord.0].pieceIndex = Some(PieceIndex::new(cara));
+        self.squares[coord.1][coord.0].pieceIndex = PieceIndex::new(cara);
+        let packedCoord = PackedCoord::new_from_Coord(piece.loc);
         match piece.pieceType {
             PieceType::King => {
-                set.King = piece.loc;
-                self.squares[coord.1][coord.0].pieceIndex = Some(PieceIndex::new(cara));
+                set.King = packedCoord;
+                self.squares[coord.1][coord.0].pieceIndex = PieceIndex::new(cara);
             },
-            PieceType::Rook => Self::spawnSpecificPiece(&mut set.Rooks,&piece.loc),
-            PieceType::Cannon => Self::spawnSpecificPiece(&mut set.Cannons,&piece.loc),
-            PieceType::Horse => Self::spawnSpecificPiece(&mut set.Horses,&piece.loc),
-            PieceType::Elephant => Self::spawnSpecificPiece(&mut set.Elephants,&piece.loc),
-            PieceType::Advisor => Self::spawnSpecificPiece(&mut set.Advisors,&piece.loc),
-            PieceType::Pawn => Self::spawnSpecificPiece(&mut set.Pawns,&piece.loc),
+            PieceType::Rook => Self::spawnSpecificPiece(&mut set.Rooks,&packedCoord),
+            PieceType::Cannon => Self::spawnSpecificPiece(&mut set.Cannons,&packedCoord),
+            PieceType::Horse => Self::spawnSpecificPiece(&mut set.Horses,&packedCoord),
+            PieceType::Elephant => Self::spawnSpecificPiece(&mut set.Elephants,&packedCoord),
+            PieceType::Advisor => Self::spawnSpecificPiece(&mut set.Advisors,&packedCoord),
+            PieceType::Pawn => Self::spawnSpecificPiece(&mut set.Pawns,&packedCoord),
         };
     }
 
@@ -182,10 +186,10 @@ impl BoardState {
         if !self.isRedTurn { // black's move, so we have 1 extra ply :)
             self.plyNumber += 1;
         }
-        if self.redPieces.King == DEAD_PIECE_COORD {
+        if self.redPieces.King == DEAD_PIECE_PACKEDCOORD {
             panic!("Invalid FEN: Red King is missing");
         }
-        if self.blackPieces.King == DEAD_PIECE_COORD {
+        if self.blackPieces.King == DEAD_PIECE_PACKEDCOORD {
             panic!("Invalid FEN: Black King is missing");
         }
 
@@ -200,7 +204,7 @@ impl BoardState {
         for (index, arr) in self.squares.iter().rev().enumerate() {
             let mut number = 0;
             for tile in arr {
-                if tile.pieceIndex.is_none() {
+                if !tile.hasPiece() {
                     number += 1;
                     continue;
                 }
@@ -209,7 +213,7 @@ impl BoardState {
                     fenString.push(from_digit(number, 10).unwrap_or('1'));
                     number = 0;
                 }
-                fenString.push(tile.pieceIndex.as_ref().unwrap().asChar());
+                fenString.push(tile.pieceIndex.asChar());
             }
             if number != 0 { // push the number
                 fenString.push(from_digit(number, 10).unwrap_or('1'));
@@ -234,11 +238,11 @@ impl BoardState {
         //print!("Position value: {}\n",self.getValue());
         for arr in self.squares.iter().rev() {
             for tile in arr {
-                if tile.pieceIndex.is_none() {
+                if !tile.hasPiece() {
                     print!("-");
                     continue;
                 }
-                print!("{}",tile.pieceIndex.as_ref().unwrap().asChar());
+                print!("{}",tile.pieceIndex.asChar());
             }
             print!("\n");
         }
@@ -318,7 +322,7 @@ impl BoardState {
             panic!("wtf");
         }
         let tile : &Tile = &self.squares[y][x];
-        return !tile.pieceIndex.is_none() && tile.pieceIndex.as_ref().unwrap().asChar().is_ascii_uppercase() == isRed;
+        return !tile.hasPiece() && tile.pieceIndex.asChar().is_ascii_uppercase() == isRed;
     }
 
     fn TryMove(&self, x: usize, y: usize, isRed : bool, moveArr : &mut Vec<Coord> ) {
@@ -381,11 +385,11 @@ impl BoardState {
     }
 
     ///Coordinates returned are in (x,y) order.
-    pub fn getAllMoves(&self) -> Vec<(Coord,Coord)> {
-        let mut ret : Vec<(Coord,Coord)> = Default::default();
+    pub fn getAllMoves(&self) -> Vec<PackedMove> {
+        let mut ret : Vec<PackedMove> = Default::default();
         for piece in self.IteratePieces(self.isRedTurn) {
             for endPos in self.getPieceMoves(&piece) {
-                ret.push((piece.loc,endPos));
+                ret.push(PackedMove::new_from_Coords((piece.loc,endPos)));
             }
         }
         return ret;
@@ -393,7 +397,7 @@ impl BoardState {
 
     ///Creates a new version of the board with the given move played. Implicitly is doing a copy.
     ///Coordinates in (x,y), "from->to" order.
-    pub fn branch(&self, newMove : (Coord,Coord)) -> Self {
+    pub fn branch(&self, newMove : PackedMove) -> Self {
         let mut ret : Self = self.clone();
         ret.updatePieceLoc(newMove);
         ret.isRedTurn = !ret.isRedTurn;
@@ -403,26 +407,25 @@ impl BoardState {
 
     pub fn hasKing(&self) -> bool {
         if self.isRedTurn {
-            return self.redPieces.King != DEAD_PIECE_COORD;
+            return self.redPieces.King != DEAD_PIECE_PACKEDCOORD;
         }
-        return self.blackPieces.King != DEAD_PIECE_COORD;
+        return self.blackPieces.King != DEAD_PIECE_PACKEDCOORD;
     }
 
-    fn updatePieceLoc(&mut self, newMove : (Coord,Coord)) { // FIXME: Needs to be made faster.
+    fn updatePieceLoc(&mut self, newMove : PackedMove) { // FIXME: Needs to be made faster.
         //Update the tile
-        let cara : char;
-        if newMove.1 != DEAD_PIECE_COORD { // If we're not moving this piece to heck
-            if self.squares[newMove.1.1][newMove.1.0].pieceIndex.as_ref().is_some() { // if a piece is already there
+        let caraOfUpdatedPiece : char = PackedMove::indexStart(&self.squares, &newMove).pieceIndex.asChar();
+        if !newMove.killsPiece() { // If we're not moving this piece to heck
+            if PackedMove::indexEnd(&self.squares, &newMove).hasPiece() { // if a piece is already there
                 self.isRedTurn = !self.isRedTurn; // FIXME: wtf
-                self.updatePieceLoc((newMove.1,DEAD_PIECE_COORD)); // move it to heck
-                self.isRedTurn = !self.isRedTurn; // FIXME: ditto
+                let mut deathMove = newMove.clone(); // Ah, right, the death move
+                deathMove.data = (deathMove.data << 8) | 0b1111_1111; // the deathmove to kill this piece
+                self.updatePieceLoc(deathMove); // the deathmove chosen specifically to kill this piece
+                self.isRedTurn = !self.isRedTurn; // the move of death.
             }
-            let oldTile : &mut Tile = &mut self.squares[newMove.0.1][newMove.0.0];
-            self.squares[newMove.1.1][newMove.1.0].pieceIndex = oldTile.pieceIndex.take();
-            debug_assert!(self.squares[newMove.1.1][newMove.1.0].pieceIndex.is_some());
-            cara = self.squares[newMove.1.1][newMove.1.0].pieceIndex.as_ref().unwrap().cara;
-        } else {
-            cara = self.squares[newMove.0.1][newMove.0.0].pieceIndex.as_ref().unwrap().cara;
+            let oldTile : &mut Tile = PackedMove::indexStartMut(&mut self.squares, &newMove); // pick up the piece
+            PackedMove::indexEndMut(&mut self.squares, &newMove).pieceIndex = oldTile.take(); // place it down
+            //debug_assert!(self.squares[newMove.1.1][newMove.1.0].hasPiece());
         }
         //Update the PieceSet location
         let set : &mut PieceSet;
@@ -431,16 +434,18 @@ impl BoardState {
         } else {
             set = &mut self.blackPieces;
         };
-        match cara {
+        let moveStart = newMove.start();
+        let moveEnd = newMove.end();
+        match caraOfUpdatedPiece {
             'k'|'K' => {
-                set.King = newMove.1;
+                set.King = moveEnd;
             },
-            'r'|'R' => Self::setSpecificPiece(&mut set.Rooks,&newMove.1,&newMove.0),
-            'c'|'C' => Self::setSpecificPiece(&mut set.Cannons,&newMove.1,&newMove.0),
-            'h'|'H' => Self::setSpecificPiece(&mut set.Horses,&newMove.1,&newMove.0),
-            'e'|'E' => Self::setSpecificPiece(&mut set.Elephants,&newMove.1,&newMove.0),
-            'a'|'A' => Self::setSpecificPiece(&mut set.Advisors,&newMove.1,&newMove.0),
-            'p'|'P' => Self::setSpecificPiece(&mut set.Pawns,&newMove.1,&newMove.0),
+            'r'|'R' => Self::setSpecificPiece(&mut set.Rooks,&moveEnd,&moveStart),
+            'c'|'C' => Self::setSpecificPiece(&mut set.Cannons,&moveEnd,&moveStart),
+            'h'|'H' => Self::setSpecificPiece(&mut set.Horses,&moveEnd,&moveStart),
+            'e'|'E' => Self::setSpecificPiece(&mut set.Elephants,&moveEnd,&moveStart),
+            'a'|'A' => Self::setSpecificPiece(&mut set.Advisors,&moveEnd,&moveStart),
+            'p'|'P' => Self::setSpecificPiece(&mut set.Pawns,&moveEnd,&moveStart),
             _ => unreachable!()
         };
     }
@@ -584,7 +589,7 @@ impl BoardState {
             PieceType::Horse => {
                 //up
                 if y < BLACK_ROW - 1 {
-                    if self.squares[y+1][x].pieceIndex.is_none() { // Knights can be blocked in Xiangqi!
+                    if !self.squares[y+1][x].hasPiece() { // Knights can be blocked in Xiangqi!
                         if x > 0 {
                             self.TryMove(x-1, y+2, piece.isRed, &mut moveArr);
                         }
@@ -595,7 +600,7 @@ impl BoardState {
                 }
                 //left
                 if x > 1 {
-                    if self.squares[y][x-1].pieceIndex.is_none() {
+                    if !self.squares[y][x-1].hasPiece() {
                         if y < BLACK_ROW {
                             self.TryMove(x-2, y+1, piece.isRed, &mut moveArr);
                         }
@@ -606,7 +611,7 @@ impl BoardState {
                 }
                 //down
                 if y > RED_ROW + 1 {
-                    if self.squares[y-1][x].pieceIndex.is_none() {
+                    if !self.squares[y-1][x].hasPiece() {
                         if x > 0 {
                             self.TryMove(x-1, y-2, piece.isRed, &mut moveArr);
                         }
@@ -617,7 +622,7 @@ impl BoardState {
                 }
                 //right
                 if x < 7 {
-                    if self.squares[y][x+1].pieceIndex.is_none() {
+                    if !self.squares[y][x+1].hasPiece() {
                         if y < BLACK_ROW {
                             self.TryMove(x+2, y+1, piece.isRed, &mut moveArr);
                         }
@@ -632,13 +637,13 @@ impl BoardState {
                     let mut foundHoppable = false;
                     for (pos, tile) in ray {
                         if foundHoppable {
-                            if tile.pieceIndex.is_none() {
+                            if !tile.hasPiece() {
                                 continue;
                             }
                             self.TryMove(pos.0,pos.1, piece.isRed, &mut moveArr);
                             break;
                         } else {
-                            if tile.pieceIndex.is_none() {
+                            if !tile.hasPiece() {
                                 self.TryMove(pos.0, pos.1, piece.isRed, &mut moveArr);
                                 continue;
                             }
@@ -651,7 +656,7 @@ impl BoardState {
                 for ray in self.GetRaysFrom(x,y) {
                     for (pos, tile) in ray {
                         self.TryMove(pos.0, pos.1, piece.isRed, &mut moveArr);   
-                        if tile.pieceIndex.is_some() {
+                        if tile.hasPiece() {
                             break;
                         }
                     }
@@ -683,25 +688,25 @@ impl BoardState {
 
     ///Determines whether the shy general rule would prevent this king from moving laterally to the given location.
     fn shyKing(&self, x: usize, y : usize, isRed : bool) -> bool {
-        let enemyKingCoords : &Coord;
+        let enemyKingCoords : Coord;
         if isRed {
-            enemyKingCoords = &self.blackPieces.King;
+            enemyKingCoords = self.blackPieces.King.makeCoord();
             if x != enemyKingCoords.0 {
                 return false;
             }
             for march_y in y..enemyKingCoords.1 {
-                if self.squares[march_y][x].pieceIndex.is_some() {
+                if self.squares[march_y][x].hasPiece() {
                     return false;
                 }
             }
             return true;
         } else {
-            enemyKingCoords = &self.redPieces.King;
+            enemyKingCoords = self.redPieces.King.makeCoord();
             if x != enemyKingCoords.0 {
                 return false;
             }
             for march_y in enemyKingCoords.1+1..y {
-                if self.squares[march_y][x].pieceIndex.is_some() {
+                if self.squares[march_y][x].hasPiece() {
                     return false;
                 }
             }
