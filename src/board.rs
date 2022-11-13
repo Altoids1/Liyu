@@ -22,7 +22,7 @@ pub struct BoardState
     // first dimension is x (a to i), second is y (1 to 10)
     pub squares : TileGrid,
     pub isRedTurn : bool,
-    pub plyNumber : i32, // Zero-indexed. Either player moving increments this. Even for Red and odd for Black
+    pub plyNumber : i16, // Zero-indexed. Either player moving increments this. Even for Red and odd for Black
     pub(crate) redPieces : PieceSet,
     pub(crate) blackPieces : PieceSet
 }
@@ -69,7 +69,7 @@ impl BoardState {
         }
     }
     
-    fn readNumber(iterator : &mut core::str::Chars) -> i32{
+    fn readNumber(iterator : &mut core::str::Chars) -> i16{
         let mut str : String = Default::default();
         loop {
             let cara = iterator.next();
@@ -80,7 +80,7 @@ impl BoardState {
                 str.push(cara.unwrap());
             }
         }
-        let ret = str.parse::<i32>();
+        let ret = str.parse::<i16>();
         return ret.unwrap_or(1);
     }
 
@@ -194,7 +194,7 @@ impl BoardState {
             panic!("Invalid FEN: Black King is missing");
         }
 
-        debug_assert!(self.plyNumber % 2 != (self.isRedTurn as i32)); // ply is even when it's Red's turn and odd when it's Black's
+        debug_assert!(self.plyNumber % 2 != (self.isRedTurn as i16)); // ply is even when it's Red's turn and odd when it's Black's
 
     }
 
