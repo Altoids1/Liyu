@@ -15,7 +15,7 @@ pub fn FEN_starting_position() { // Tests that basic reading/writing of FENs wor
 }
 
 #[test]
-pub fn ruleset_test() { // Tests that, at least in the starting position, we output the correct number of moves.
+pub fn ruleset_starting_position() { // Tests that, at least in the starting position, we output the correct number of moves.
     let starting_board = board::BoardState::new();
     let cnt = starting_board.countMoves();
     if cnt != 44 {
@@ -38,6 +38,14 @@ pub fn ruleset_branch() { // Tests that, like, moving pieces around works
 pub fn ruleset_shy_general() { // Tests that the shy general rule works
     let board = board::BoardState::new_from_FEN("3k5/9/9/4p4/9/9/4P4/9/9/4K4 w - - 0 1");
     assert_eq!(board.countMoves(),3);
+}
+
+#[test]
+pub fn ruleset_cannon() {
+    let board = board::BoardState::new_from_FEN("1rbakabCr/9/4c2c1/p1p1p1p1p/9/9/P1P1P1P1P/9/9/RNBAKABNR w - - 0 1");
+    let val = engine::Engine::evalToDepth(&board, 2);
+    assert_ne!(val,RED_WON);
+    assert_ne!(val,BLACK_WON);
 }
 
 #[test]

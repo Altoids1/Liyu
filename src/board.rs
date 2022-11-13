@@ -146,6 +146,12 @@ impl BoardState {
                 'p' | 'P' | 'a' | 'A' | 'e' | 'E' | 'h' | 'H' | 'c' | 'C' | 'r' | 'R' | 'k' | 'K'  => {
                     self.spawnPiece(cara,(x,y));
                 },
+                'b' => { // For some reason xiangqi.com uses this to mark Elephants sometimes.
+                    self.spawnPiece('e',(x,y));
+                },
+                'B' => {
+                    self.spawnPiece('E',(x,y));
+                },
                 'N' => {
                     self.spawnPiece('H',(x,y));
                 }

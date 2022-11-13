@@ -7,7 +7,7 @@ use super::{Coord,DEAD_PIECE_COORD};
 /// 5-8   : y of starting Coord
 /// 9-12  : x of ending Coord
 /// 12-15 : y of ending Coord
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PackedMove {
     pub data : u16
 }
@@ -69,10 +69,8 @@ impl PackedMove {
     pub const fn killsPiece(&self) -> bool { // True if the piece moves to an encoded DEAD_PIECE_COORD
         return (self.data & 0b0000_0000_1111_1111u16) == 0b1111_1111u16;
     }
-}
 
-impl std::fmt::Display for PackedMove {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn formatThis(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.data == 0b1111_1111_1111_1111 {
             return write!(f,"????");
         }
@@ -81,6 +79,18 @@ impl std::fmt::Display for PackedMove {
         let x_end = (self.data & 0b0000_0000_1111_0000) >> 4u16;
         let y_end = self.data & 0b0000_0000_0000_1111;
         write!(f, "{}{}{}{}", Self::getLetter(y_start),x_start+1,Self::getLetter(y_end),x_end+1)
+    }
+}
+
+impl std::fmt::Display for PackedMove {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.formatThis(f)
+    }
+}
+
+impl std::fmt::Debug for PackedMove {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.formatThis(f)
     }
 }
 
