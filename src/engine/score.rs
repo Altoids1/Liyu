@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 /// however, sometimes the evaluation amounts to things like "black has won" or "the position is illegal"
 /// in which case, we need to return something else!
 /// The solution, for now, is to do NaN boxing, as described (for example) here: http://www.craftinginterpreters.com/optimization.html#what-is-and-is-not-a-number
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct ScoreF32 {
     pub data : f32
 }
@@ -48,6 +48,12 @@ impl ScoreF32 {
 impl Default for ScoreF32 {
     fn default() -> Self {
         return Self::new(0f32);
+    }
+}
+
+impl std::hash::Hash for ScoreF32 {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        (self.data as i32).hash(state); // Like. wtf
     }
 }
 

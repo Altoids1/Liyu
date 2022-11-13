@@ -9,22 +9,41 @@ use self::score::{ScoreF32, RED_WON,BLACK_WON,INVALID_POS};
 
 pub struct Engine
 {
-    cache : HashMap<BoardState,f32>,
-    nodeCount: i32
+    ///This is used to help Liyu remember what moves she took. <br/>
+    ///Key is the score of this permutation, value is the moves it took to get there
+    bestCache : HashMap<ScoreF32,Vec<PackedMove>>,
+    nodeCount: i32,
+    recentMoveList : Vec<PackedMove>, // While we do use Vec here, it is definitely preferable to allocate the singular time.
+    startStateIsRed : bool,
 }
 
 impl Engine {
     fn new() -> Self {
         return Self {
-            cache : Default::default(),
-            nodeCount : 0
+            bestCache : Default::default(),
+            nodeCount : 0,
+            recentMoveList : Default::default(),
+            startStateIsRed : Default::default()
         };
     }
     pub fn evalToDepth(startState : &BoardState, depth : i32) -> ScoreF32 {
         let mut engine : Self = Engine::new();
         let now = Instant::now();
-        let ret = engine._eval(startState.to_owned(),depth,&INVALID_POS , &INVALID_POS );
+        engine.recentMoveList = vec![PackedMove::new(); depth as usize];
+        engine.startStateIsRed = startState.isRedTurn;
+        assert_eq!(engine.recentMoveList.len(),depth as usize);
+        let ret = engine._eval_first(startState.to_owned(),depth);
         print!("Engine evaluated {} nodes ({} nodes/sec)\n",engine.nodeCount, (engine.nodeCount as f32) / now.elapsed().as_secs_f32());
+        if engine.bestCache.is_empty() {
+            println!("No moves were available!");
+        } else {
+            //println!("{} move sets recorded",engine.bestCache.len());
+            print!("Moves: ");
+            for goodMove in engine.bestCache[&ret].iter() {
+                print!(" {} ",goodMove);
+            }
+            print!("\n");
+        }
         return ret;
     }
 
@@ -66,9 +85,28 @@ impl Engine {
         return Ordering::Less; // Preserve old order, I guess!
     }
 
+    fn recordRecentMove(&mut self, packedMove : PackedMove, depth : i32) {
+        if packedMove == PackedMove::new() {
+            return;
+        }
+
+        let len = self.recentMoveList.len() as i32;
+        self.recentMoveList[(len - depth) as usize] = packedMove;
+    }
+
+    fn cacheMoveOrder(&mut self, score : ScoreF32) {
+        self.bestCache.entry(score).or_insert(self.recentMoveList.clone());
+    }
+
+    fn _eval_first(&mut self, state : BoardState, depth : i32) -> ScoreF32 {
+        return self._eval(state,depth, &INVALID_POS, &INVALID_POS);
+    }
+
     fn _eval(&mut self, state : BoardState, depth : i32, blackBestAbove : &ScoreF32, redBestAbove : &ScoreF32) -> ScoreF32 {
         if depth == 0 {
-            return state.getValue();
+            let val = state.getValue();
+            self.cacheMoveOrder(val);
+            return val;
         }
         /*
         if redBestAbove != INVALID_POS {
@@ -76,15 +114,16 @@ impl Engine {
         }
         */
         let mut moves = state.getAllMoves();
-        moves.sort_unstable_by(|a,b| { // Awkward to wrap this function call in a closure but whaaatever
-            Self::sort_moves(&state, a, b)
-        });
         if moves.is_empty() { // Current player has no moves (and ergo has lost, either by stalemate or checkmate)
             if state.isRedTurn {
                 return score::BLACK_WON;
             }
             return score::RED_WON;
         }
+        moves.sort_unstable_by(|a,b| { // Awkward to wrap this function call in a closure but whaaatever
+            Self::sort_moves(&state, a, b)
+        });
+
         let mut foundValidMove : bool = false;
         let mut blackBest : ScoreF32 = RED_WON;
         let mut redBest : ScoreF32 = BLACK_WON;
@@ -94,25 +133,28 @@ impl Engine {
             //debug_assert!(here.1 < 10);
             let newBoard = state.branch(packedMove); // apply it to the board
             self.nodeCount += 1;
+            self.recordRecentMove(packedMove, depth);
+            let moveScore : ScoreF32;
             if !newBoard.hasKing() {
                 if state.isRedTurn {
-                    return RED_WON;
+                    moveScore = RED_WON;
                 } else {
-                    return BLACK_WON;
+                    moveScore = BLACK_WON;
                 }
+                self.cacheMoveOrder(moveScore);
             }
-            let moveScore : ScoreF32;
-            if foundValidMove {
+            else if foundValidMove {
                 moveScore = self._eval(newBoard, depth-1, &blackBest, &redBest);
             } else {
                 moveScore = self._eval(newBoard, depth-1, &INVALID_POS, &INVALID_POS);
+                foundValidMove = true;
             }
             if moveScore == score::INVALID_POS {
                 //state.branch((here,there)).Display();
                 continue;
                 //panic!("Position was invalid:");
             }
-            foundValidMove = true;
+            
             if state.isRedTurn { // if current player is red
                 if moveScore == score::RED_WON { // and this move just wins
                     return RED_WON; // this is the move
@@ -125,6 +167,7 @@ impl Engine {
                         return redBest;
                     }
                 }
+                
             } else {
                 if moveScore == score::BLACK_WON {
                     return BLACK_WON;
@@ -141,8 +184,10 @@ impl Engine {
         }
         if !foundValidMove { // No valid moves means we're checkmated or stalemated, probably
             if state.isRedTurn {
+                self.cacheMoveOrder(BLACK_WON);
                 return score::BLACK_WON;
             }
+            self.cacheMoveOrder(BLACK_WON);
             return score::RED_WON;
         }
         

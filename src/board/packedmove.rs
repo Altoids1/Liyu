@@ -7,14 +7,18 @@ use super::{Coord,DEAD_PIECE_COORD};
 /// 5-8   : y of starting Coord
 /// 9-12  : x of ending Coord
 /// 12-15 : y of ending Coord
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct PackedMove {
     pub data : u16
 }
 
 impl PackedMove {
-    pub fn new_from_Coords(movePair : (Coord,Coord)) -> Self {
-        debug_assert!(movePair.0 != movePair.1);
+    pub const fn new() -> Self {
+        return Self {
+            data : 0b1111_1111_1111_1111u16
+        };
+    }
+    pub const fn new_from_Coords(movePair : (Coord,Coord)) -> Self {
         let mut datum : u16 = 0;
         datum |= ((movePair.0.0 as u16) & 0b1111) << 12;
         datum |= ((movePair.0.1 as u16) & 0b1111) << 8;
@@ -69,6 +73,9 @@ impl PackedMove {
 
 impl std::fmt::Display for PackedMove {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.data == 0b1111_1111_1111_1111 {
+            return write!(f,"????");
+        }
         let x_start = (self.data & 0b1111_0000_0000_0000) >> 12u16;
         let y_start = (self.data & 0b0000_1111_0000_0000) >> 8u16;
         let x_end = (self.data & 0b0000_0000_1111_0000) >> 4u16;
