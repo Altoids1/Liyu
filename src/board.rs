@@ -259,7 +259,6 @@ impl BoardState {
     /// Positive value means Red is winning, negative value means Black is winning.
     pub fn getValue(&self) -> ScoreF32 {
         let mut sum : f32 = 0f32;
-        let mut foundKings = 0;
         let mut foundRed : bool = false;
         let mut foundBlack : bool = false;
 
@@ -285,7 +284,7 @@ impl BoardState {
                 },
                 PieceType::Cannon => 4.5f32,
                 PieceType::Rook => 9f32,
-                PieceType::King => {foundKings+=1;foundRed = true; 0f32} // we handle this differently
+                PieceType::King => {foundRed = true; 0f32} // we handle this differently
             }
         }
         for piece in self.IteratePieces(false) {
@@ -310,11 +309,8 @@ impl BoardState {
                 },
                 PieceType::Cannon => 4.5f32,
                 PieceType::Rook => 9f32,
-                PieceType::King => {foundKings+=1;foundBlack = true; 0f32} // we handle this differently
+                PieceType::King => {foundBlack = true; 0f32} // we handle this differently
             }
-        }
-        if foundKings > 2 {
-            return score::INVALID_POS;
         }
         if !foundBlack {
             return score::RED_WON;
