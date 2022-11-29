@@ -95,7 +95,9 @@ impl Engine {
     }
 
     fn cacheMoveOrder(&mut self, score : ScoreF32) {
-        self.bestCache.entry(score).or_insert(self.recentMoveList.clone());
+        if !self.bestCache.contains_key(&score) { // Bad to double-hash but it does avoid a clone that WOULD happen with or_insert()
+            self.bestCache.insert(score, self.recentMoveList.clone());
+        }
     }
 
     fn _eval_first(&mut self, state : BoardState, depth : i32) -> ScoreF32 {
