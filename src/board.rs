@@ -20,7 +20,7 @@ pub const DEAD_PIECE_COORD : Coord = (0b1111,0b1111); // Using specifically thes
 #[derive(Clone, PartialEq, Eq)]
 pub struct BoardState
 {
-    // first dimension is x (a to i), second is y (1 to 10)
+    // first dimension is x (1 to 9), second is y (a to i)
     pub squares : TileGrid,
     pub isRedTurn : bool,
     pub plyNumber : i16, // Zero-indexed. Either player moving increments this. Even for Red and odd for Black
@@ -104,14 +104,14 @@ impl BoardState {
     ///To be used exclusively by the FEN reader. Does checking to ensure there aren't too many of any particular piece
     fn spawnPiece(&mut self, cara : char, coord : Coord ) {
         let set : &mut PieceSet;
-        let piece : Piece = Piece::new(cara,coord);
+        let piece : Piece = Piece::new(cara,PackedCoord::new_from_Coord(coord));
         if piece.isRed {
             set = &mut self.redPieces;
         } else {
             set = &mut self.blackPieces;
         }
         self.squares[coord.1][coord.0].pieceIndex = PieceIndex::new(cara);
-        let packedCoord = PackedCoord::new_from_Coord(piece.loc);
+        let packedCoord = piece.loc;
         match piece.pieceType {
             PieceType::King => {
                 set.King = packedCoord;
@@ -266,7 +266,7 @@ impl BoardState {
         for piece in self.IteratePieces(true) {
             sum += match piece.pieceType {
                 PieceType::Pawn => {
-                    if piece.loc.1 >= BLACK_RIVER {
+                    if piece.loc.y() >= BLACK_RIVER {
                         2f32
                     }
                     else {
@@ -276,7 +276,7 @@ impl BoardState {
                 PieceType::Advisor => 2f32,
                 PieceType::Elephant => 2f32,
                 PieceType::Horse => {
-                    match piece.loc.0 {
+                    match piece.loc.x() {
                         0 => 3.5f32,
                         1..=7 => 4f32,
                         8 => 3.5f32,
@@ -291,7 +291,7 @@ impl BoardState {
         for piece in self.IteratePieces(false) {
             sum -= match piece.pieceType {
                 PieceType::Pawn => {
-                    if piece.loc.1 <= RED_RIVER {
+                    if piece.loc.y() <= RED_RIVER {
                         2f32
                     }
                     else {
@@ -301,7 +301,7 @@ impl BoardState {
                 PieceType::Advisor => 2f32,
                 PieceType::Elephant => 2f32,
                 PieceType::Horse => {
-                    match piece.loc.0 {
+                    match piece.loc.x() {
                         0 => 3.5f32,
                         1..=7 => 4f32,
                         8 => 3.5f32,
@@ -331,9 +331,9 @@ impl BoardState {
         return tile.hasPiece() && tile.pieceIndex.asChar().is_ascii_uppercase() == isRed;
     }
 
-    fn TryMove(&self, x: usize, y: usize, isRed : bool, moveArr : &mut Vec<Coord> ) {
+    fn TryMove(&self, x: usize, y: usize, isRed : bool, moveArr : &mut Vec<PackedCoord> ) {
         if !self.IsSameColour(x, y, isRed) {
-            moveArr.push((x,y));
+            moveArr.push(PackedCoord::new_from_usize(x,y));
         }
     }
     /// Returns whether the given coordinate is within a palace.
@@ -374,11 +374,14 @@ impl BoardState {
 
     ///Coordinates returned are in (x,y) order.
     pub fn getAllMoves(&self) -> Vec<PackedMove> {
-        let mut ret : Vec<PackedMove> = Default::default();
+        let mut ret : Vec<PackedMove> = Vec::with_capacity(48);
+        let mut coords : Vec<PackedCoord> = Vec::with_capacity(16);
         for piece in self.IteratePieces(self.isRedTurn) {
-            for endPos in self.getPieceMoves(&piece) {
-                ret.push(PackedMove::new_from_Coords((piece.loc,endPos)));
+            coords = self.getPieceMoves(&piece, coords);
+            for coord in coords.as_slice().iter() {
+                ret.push(PackedMove::new_from_packed(piece.loc, *coord));
             }
+            coords.clear();
         }
         return ret;
     }
@@ -434,17 +437,17 @@ impl BoardState {
             'e'|'E' => Self::setSpecificPiece(&mut set.Elephants,&moveEnd,&moveStart),
             'a'|'A' => Self::setSpecificPiece(&mut set.Advisors,&moveEnd,&moveStart),
             'p'|'P' => Self::setSpecificPiece(&mut set.Pawns,&moveEnd,&moveStart),
-            _ => unreachable!()
+            _ => unreachable!("'{}' is an impossible piece character",caraOfUpdatedPiece)
         };
     }
 
+    ///Gets the moves for the given piece. <br/>
     ///Coordinates returned are in (x,y) order.
-    pub fn getPieceMoves(&self, piece : &Piece) -> Vec<Coord> {
-        let mut moveArr :  Vec<Coord> = Default::default();
-        let x = piece.loc.0;
-        let y = piece.loc.1;
-        debug_assert_ne!(DEAD_PIECE_COORD.0,piece.loc.0);
-        debug_assert_ne!(DEAD_PIECE_COORD.1,piece.loc.1);
+    pub fn getPieceMoves(&self, piece : &Piece, mut moveArr : Vec<PackedCoord>) -> Vec<PackedCoord> {
+        let x = piece.loc.x();
+        let y = piece.loc.y();
+        debug_assert_ne!(DEAD_PIECE_COORD.0,x);
+        debug_assert_ne!(DEAD_PIECE_COORD.1,y);
         match piece.pieceType { 
             PieceType::Pawn => {
                 if piece.isRed {

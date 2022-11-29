@@ -28,6 +28,11 @@ impl PackedMove {
             data : datum
         };
     }
+    pub const fn new_from_packed(start : PackedCoord, end : PackedCoord) -> Self {
+        return Self {
+            data : ((start.data as u16) << 8u16) | ((end.data as u16))
+        };
+    }
     fn getLetter(x_val : u16) -> char {
         const LETTERS : &'static [u8] = "abcdefghij".as_bytes();
         return LETTERS[x_val as usize] as char;
@@ -107,7 +112,14 @@ pub const DEAD_PIECE_PACKEDCOORD : PackedCoord = PackedCoord::new_from_Coord(DEA
 impl PackedCoord {
     pub const fn new_from_Coord(coord : Coord) -> Self {
         return Self {
-            data : (((coord.0 & 0b1111) << 4u16) | (coord.1 & 0b1111)) as u8
+            data : (((coord.0 & 0b1111) << 4u8) | (coord.1 & 0b1111)) as u8
+        };
+    }
+    pub fn new_from_usize(x : usize, y : usize) -> Self {
+        debug_assert!(y < 10);
+        debug_assert!(x < 9);
+        return Self {
+            data : (((x & 0b1111) << 4u8) | (y & 0b1111)) as u8
         };
     }
 
@@ -117,5 +129,12 @@ impl PackedCoord {
             ((self.data & 0b1111_0000) >> 4u16) as usize,
             (self.data & 0b1111) as usize,
         );
+    }
+
+    pub fn x(&self) -> usize {
+        return (self.data >> 4u8) as usize;
+    }
+    pub fn y(&self) -> usize {
+        return (self.data & 0b1111) as usize;
     }
 }

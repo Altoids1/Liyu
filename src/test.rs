@@ -115,7 +115,6 @@ pub fn engine_mate_in_two() {
 }
 
 #[test]
-#[ignore]
 pub fn engine_mate_in_three() {
     let mate_three = board::BoardState::new_from_FEN("2C1k4/4a4/4ca3/8R/p8/2P6/P5P1P/4C4/1R2A4/1NBK1ABN1 w - - 0 1");
     let mate_three_score = engine::Engine::evalToDepth(&mate_three, 6);

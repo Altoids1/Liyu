@@ -1,4 +1,3 @@
-use super::DEAD_PIECE_COORD;
 use super::packedmove::{PackedCoord,DEAD_PIECE_PACKEDCOORD};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -17,11 +16,11 @@ pub struct Piece
 {
     pub pieceType : PieceType,
     pub isRed : bool,
-    pub loc : (usize,usize)
+    pub loc : PackedCoord
 }
 
 impl Piece {
-    pub fn new(cara : char, newLocation : (usize,usize)) -> Self {
+    pub fn new(cara : char, newLocation : PackedCoord) -> Self {
         match cara {
             'p' => {
                 return Piece {pieceType : PieceType::Pawn, isRed : false, loc : newLocation};
@@ -142,21 +141,21 @@ impl<'a> Iterator for PieceSetIterator<'a> {
     type Item = Piece;
     fn next(&mut self) -> Option<Self::Item> {
          let mut ret: Piece = match self.index {
-            0 => Piece::new('r',self.setRef.Rooks[0].makeCoord()),
-            1 => Piece::new('r',self.setRef.Rooks[1].makeCoord()),
-            2 => Piece::new('c',self.setRef.Cannons[0].makeCoord()),
-            3 => Piece::new('c',self.setRef.Cannons[1].makeCoord()),
-            4 => Piece::new('h',self.setRef.Horses[0].makeCoord()),
-            5 => Piece::new('h',self.setRef.Horses[1].makeCoord()),
-            6 => Piece::new('e',self.setRef.Elephants[0].makeCoord()),
-            7 => Piece::new('e',self.setRef.Elephants[1].makeCoord()),
-            8..=12 => Piece::new('p',self.setRef.Pawns[self.index - 8usize].makeCoord()),
-            13 => Piece::new('k',self.setRef.King.makeCoord()),
-            14 => Piece::new('a',self.setRef.Advisors[0].makeCoord()),
-            15 => Piece::new('a',self.setRef.Advisors[1].makeCoord()),
+            0 => Piece::new('r',self.setRef.Rooks[0]),
+            1 => Piece::new('r',self.setRef.Rooks[1]),
+            2 => Piece::new('c',self.setRef.Cannons[0]),
+            3 => Piece::new('c',self.setRef.Cannons[1]),
+            4 => Piece::new('h',self.setRef.Horses[0]),
+            5 => Piece::new('h',self.setRef.Horses[1]),
+            6 => Piece::new('e',self.setRef.Elephants[0]),
+            7 => Piece::new('e',self.setRef.Elephants[1]),
+            8..=12 => Piece::new('p',self.setRef.Pawns[self.index - 8usize]),
+            13 => Piece::new('k',self.setRef.King),
+            14 => Piece::new('a',self.setRef.Advisors[0]),
+            15 => Piece::new('a',self.setRef.Advisors[1]),
             _ => return None
         };
-        if ret.loc == DEAD_PIECE_COORD {
+        if ret.loc == DEAD_PIECE_PACKEDCOORD {
             self.index +=1;
             return self.next(); // Bad to do it this way but it is the cleanest
         }
