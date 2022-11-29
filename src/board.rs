@@ -2,6 +2,7 @@ use std::{char::from_digit, hint::unreachable_unchecked};
 pub mod piece;
 pub mod tile;
 pub mod packedmove;
+mod rayiterator;
 use piece::{PieceType,Piece};
 use tile::{Tile,TileIterator,PieceIndex};
 use crate::engine::score::ScoreF32;
@@ -9,6 +10,7 @@ use crate::engine::score;
 
 use self::piece::{PieceSet, PieceSetIterator};
 use self::packedmove::{PackedMove, PackedCoord,DEAD_PIECE_PACKEDCOORD};
+use self::rayiterator::RayIterator;
 
 pub type Coord = (usize,usize);
 pub type TileGrid = [[Tile;9];10];
@@ -349,26 +351,8 @@ impl BoardState {
     }
 
     ///NOTE: I'd love for this for be an iterator but iterators MUST be structs in Rust so
-    fn GetRaysFrom(&self, x: usize, y : usize) -> [Vec<(Coord, &Tile)>;4] {
-        let mut ret : [Vec<(Coord, &Tile)>;4] = Default::default();
-        //go up
-        for i in y+1..=BLACK_ROW {
-            ret[0].push(((x,i),&self.squares[i][x]));
-        }
-        //go left
-        for i in (0..x).rev() { // hate u rust
-            ret[1].push(((i,y),&self.squares[y][i]));
-        }
-        //go right
-        for i in x+1..9 {
-            ret[2].push(((i,y),&self.squares[y][i]));
-        }
-        //go down
-        for i in (RED_ROW..y).rev() {
-            ret[3].push(((x,i),&self.squares[i][x]));
-        }
-
-        return ret;
+    fn GetRaysFrom(&self, x: usize, y : usize) -> RayIterator {
+        return RayIterator::new(&self.squares, x, y);
     }
 
     #[allow(dead_code)] // Just nice to have even if unused atm
