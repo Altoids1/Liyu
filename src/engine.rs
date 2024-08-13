@@ -110,11 +110,16 @@ impl Engine {
             self.cacheMoveOrder(val);
             return val;
         }
-        /*
-        if redBestAbove != INVALID_POS {
-            debug_assert!(blackBestAbove <= redBestAbove, "red's best was not higher than black's? {blackBestAbove},{redBestAbove}");
+
+        if redBestAbove != INVALID_POS && blackBestAbove != INVALID_POS {
+            
+            if redBestAbove == blackBestAbove { // alpha-beta collapse!
+                return *redBestAbove;
+            }
+            //println!("{} and {}", redBestAbove, blackBestAbove);
+            //debug_assert!(depth != 6 && blackBestAbove <= redBestAbove, "red's best was not higher than black's? {blackBestAbove},{redBestAbove}");
         }
-        */
+
         let mut moves = state.getAllMoves();
         if moves.is_empty() { // Current player has no moves (and ergo has lost, either by stalemate or checkmate)
             if state.isRedTurn {
