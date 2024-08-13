@@ -47,42 +47,75 @@ impl Engine {
         return ret;
     }
 
-    ///Lower is better.
+    /// Higher value is better.
+    /// Super simplistic version of the piece scoring in board.rs.
     fn capture_priority(cara :char) -> i32 {
         match cara {
-            'k'|'K' => 0,
-            'r'|'R' => 1,
-            'c'|'C' => 2,
-            'h'|'H' => 3,
-            'e'|'E' => 4,
-            'a'|'A' => 5,
-            'p'|'P' => 6,
-            _ => 7,
+            'k'|'K' => 999, // Shenzhen I/O moment
+            'r'|'R' => 6,
+            'c'|'C' => 5,
+            'h'|'H' => 4,
+            'e'|'E' => 3,
+            'a'|'A' => 2,
+            'p'|'P' => 1,
+            _ => unreachable!("Can't recognize piece given to capture_priority"),
+        }
+    }
+
+    // Lower value is better.
+    fn move_priority(cara : char) -> i32 {
+        match cara {
+            'k'|'K' => 7,
+            'r'|'R' => 4,
+            'c'|'C' => 1,
+            'h'|'H' => 2,
+            'e'|'E' => 5,
+            'a'|'A' => 6,
+            'p'|'P' => 3,
+            _ => unreachable!("Can't recognize piece given to capture_priority"),
+        }
+    }
+
+    fn check_move_priority(cara : char) -> i32 {
+        match cara {
+            'k'|'K' => 1,
+            'r'|'R' => 3,
+            'c'|'C' => 5,
+            'h'|'H' => 4,
+            'e'|'E' => 6,
+            'a'|'A' => 2,
+            'p'|'P' => 7,
+            _ => unreachable!("Can't recognize piece given to capture_priority"),
         }
     }
 
     ///Looks at moves A and B and decides which should be evaluated first.
-    fn sort_moves(state : &BoardState, a : &PackedMove, b : &PackedMove) -> std::cmp::Ordering {
-        //Does B capture anything?
-        let betaCaptures : char = PackedMove::indexEnd(&state.squares, b).pieceIndex.asChar();
-        if betaCaptures != '\0' {
-            let alphaCaptures : char = PackedMove::indexEnd(&state.squares, a).pieceIndex.asChar();
-            //If A doesn't capture yet B does capture
-            if alphaCaptures == '\0' {
-                return Ordering::Greater; // then B should be first
+    fn sort_moves(state : &BoardState, inCheck : bool, a : &PackedMove, b : &PackedMove) -> std::cmp::Ordering {
+        let alphaPiece = PackedMove::indexStart(&state.squares, a).pieceIndex.asChar();
+        let betaPiece = PackedMove::indexStart(&state.squares, b).pieceIndex.asChar();
+
+        // Handle capture preferences
+        let betaCapturedPiece = PackedMove::indexEnd(&state.squares, b).pieceIndex.asChar();
+        let alphaCapturedPiece = PackedMove::indexEnd(&state.squares, a).pieceIndex.asChar();
+        if alphaCapturedPiece != '\0' && betaCapturedPiece != '\0' {
+            let alphaCaptureScore = Self::capture_priority(alphaCapturedPiece) - Self::capture_priority(alphaPiece);
+            let betaCaptureScore = Self::capture_priority(betaCapturedPiece) - Self::capture_priority(betaPiece);
+            let comp = betaCaptureScore.cmp(&alphaCaptureScore);
+            if comp != Ordering::Equal {
+                return comp;
             }
-            //if both capture, we have a priority system
-            let captureCmp = Self::capture_priority(alphaCaptures).cmp(&Self::capture_priority(betaCaptures));
-            if captureCmp == Ordering::Equal { // If they're capturing the same tier of piece
-                let alphaPiece = PackedMove::indexStart(&state.squares, a).pieceIndex.asChar();
-                let betaPiece =  PackedMove::indexStart(&state.squares, b).pieceIndex.asChar();
-                // The comparison order here is reversed to prefer the attacker of lowest value.
-                return Self::capture_priority(betaPiece).cmp(&Self::capture_priority(alphaPiece)); 
-            }
-            return captureCmp;
         }
-        //If B doesn't capture anything, then whatever A is, it should go first.
-        return Ordering::Less; // Preserve old order, I guess!
+        // If either is a capture, prefer the capturing move
+        else if alphaCapturedPiece != '\0' {
+            return Ordering::Less;
+        }
+        else if betaCapturedPiece != '\0' {
+            return Ordering::Greater;
+        }
+        if inCheck {
+            return Self::check_move_priority(alphaPiece).cmp(&Self::check_move_priority(betaPiece));
+        }
+        return Self::move_priority(alphaPiece).cmp(&Self::move_priority(betaPiece));
     }
 
     fn recordRecentMove(&mut self, packedMove : PackedMove, depth : i32) {
@@ -127,8 +160,11 @@ impl Engine {
             }
             return score::RED_WON;
         }
+
+        let inCheck = state.isInCheck();
+
         moves.sort_unstable_by(|a,b| { // Awkward to wrap this function call in a closure but whaaatever
-            Self::sort_moves(&state, a, b)
+            Self::sort_moves(&state, inCheck, a, b)
         });
 
         let mut foundValidMove : bool = false;

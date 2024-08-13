@@ -382,6 +382,21 @@ impl BoardState {
         return ret;
     }
 
+    //FIXME: This is too expensive to use in the move sorting algorithm :(
+    pub fn isInCheck(&self) -> bool {
+        let kingPosition = if self.isRedTurn { self.redPieces.King} else {self.blackPieces.King};
+        for piece in self.IteratePieces(!self.isRedTurn) {
+            let mut coords : Vec<PackedCoord> = Vec::with_capacity(16);
+            coords = self.getPieceMoves(&piece, coords);
+            for coord in coords.as_slice().iter() {
+                if coord == &kingPosition {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     ///Creates a new version of the board with the given move played. Implicitly is doing a copy.
     ///Coordinates in (x,y), "from->to" order.
     pub fn branch(&self, newMove : PackedMove) -> Self {
