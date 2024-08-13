@@ -43,6 +43,20 @@ impl ScoreF32 {
     const fn to_bytes(&self) -> u32 {
         unsafe { return transmute::<f32,u32>(self.data); }
     }
+
+    // there's no lazy max for PartialOrd so we're doing this instead >_>
+    pub fn shitty_max<'a>(&'a self, val : &'a ScoreF32) -> &'a Self {
+        if self.eq(&INVALID_POS) || self.lt(val) {
+            return val;
+        }
+        return self;
+    }
+    pub fn shitty_min<'a>(&'a self, val : &'a ScoreF32) -> &'a Self {
+        if self.eq(&INVALID_POS) || self.gt(val) {
+            return val;
+        }
+        return self;
+    }
 }
 
 impl Default for ScoreF32 {

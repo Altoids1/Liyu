@@ -140,6 +140,7 @@ impl Engine {
     fn _eval(&mut self, state : BoardState, depth : i32, blackBestAbove : &ScoreF32, redBestAbove : &ScoreF32) -> ScoreF32 {
         if depth == 0 {
             let val = state.getValue();
+            //println!("{}",val);
             self.cacheMoveOrder(val);
             return val;
         }
@@ -168,8 +169,12 @@ impl Engine {
         });
 
         let mut foundValidMove : bool = false;
-        let mut blackBest : ScoreF32 = RED_WON;
-        let mut redBest : ScoreF32 = BLACK_WON;
+        let mut ourBest : ScoreF32;
+        if state.isRedTurn {
+            ourBest = BLACK_WON;
+        } else {
+            ourBest = RED_WON;
+        }
 
         for packedMove in moves { // for every possible move
             //debug_assert!(here.0 < 9);
@@ -186,10 +191,12 @@ impl Engine {
                 }
                 self.cacheMoveOrder(moveScore);
             }
-            else if foundValidMove {
-                moveScore = self._eval(newBoard, depth-1, &blackBest, &redBest);
-            } else {
-                moveScore = self._eval(newBoard, depth-1, &INVALID_POS, &INVALID_POS);
+            else {
+                if state.isRedTurn {
+                    moveScore = self._eval(newBoard, depth-1, &blackBestAbove, ourBest.shitty_max(redBestAbove));
+                } else {
+                    moveScore = self._eval(newBoard, depth-1, ourBest.shitty_min(blackBestAbove), &redBestAbove);
+                }
                 foundValidMove = true;
             }
             if moveScore == score::INVALID_POS {
@@ -202,26 +209,28 @@ impl Engine {
                 if moveScore == score::RED_WON { // and this move just wins
                     return RED_WON; // this is the move
                 }
-                if redBest < moveScore { // if this move is better than the old best
-                    redBest = moveScore; // cool :)
-                    if redBest > *blackBestAbove { 
+                if moveScore > ourBest { // if this move is better than the old best
+                    if moveScore > *blackBestAbove { 
                         //If this results in a position so good that black should've just prevented it from happening
                         //then lets say they did.
-                        return redBest;
+                        //println!("*snip for Red ({} vs {})",moveScore,blackBestAbove);
+                        return *blackBestAbove;
                     }
+                    ourBest = moveScore; // cool :)
                 }
                 
-            } else {
+            } else { // Current player is black
                 if moveScore == score::BLACK_WON {
                     return BLACK_WON;
                 }
-                if blackBest > moveScore {
-                    blackBest = moveScore;
-                    if blackBest < *redBestAbove { 
+                if moveScore < ourBest {
+                    if moveScore < *redBestAbove { 
                         //If this results in a position so bad that red should've just prevented it from happening
                         //then lets say they did.
-                        return blackBest;
+                        //println!("*snip for Black ({} vs {})",moveScore,redBestAbove);
+                        return *redBestAbove;
                     }
+                    ourBest = moveScore;
                 }
             }
         }
@@ -234,10 +243,6 @@ impl Engine {
             return score::RED_WON;
         }
         
-        if state.isRedTurn {
-            return redBest;
-        } else {
-            return blackBest;
-        }
+        return ourBest;
     }
 }
