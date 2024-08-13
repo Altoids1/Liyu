@@ -262,6 +262,8 @@ impl BoardState {
         let mut foundRed : bool = false;
         let mut foundBlack : bool = false;
 
+        if self.isRedTurn { sum += 0.125f32;}
+
         for piece in self.IteratePieces(true) {
             sum += match piece.pieceType {
                 PieceType::Pawn => {
@@ -272,7 +274,11 @@ impl BoardState {
                         1f32
                     }
                 },
-                PieceType::Advisor => 2f32,
+                PieceType::Advisor => match piece.loc.y() {
+                    0 => 1.75f32,
+                    1..=2 => 2f32,
+                    _ => unreachable!()
+                },
                 PieceType::Elephant => 2f32,
                 PieceType::Horse => {
                     match piece.loc.x() {
@@ -283,7 +289,13 @@ impl BoardState {
                     }
                 },
                 PieceType::Cannon => 4.5f32,
-                PieceType::Rook => 9f32,
+                PieceType::Rook => {
+                    match piece.loc.y() {
+                        9 => 9f32,
+                        0..=8 => 8.5f32,
+                        _ => unreachable!()
+                    }
+                },
                 PieceType::King => {foundRed = true; 0f32} // we handle this differently
             }
         }
@@ -297,18 +309,28 @@ impl BoardState {
                         1f32
                     }
                 },
-                PieceType::Advisor => 2f32,
+                PieceType::Advisor => match piece.loc.y() {
+                    9 => 1.75f32,
+                    7..=8 => 2f32,
+                    _ => unreachable!()
+                },
                 PieceType::Elephant => 2f32,
                 PieceType::Horse => {
                     match piece.loc.x() {
                         0 => 3.5f32,
                         1..=7 => 4f32,
                         8 => 3.5f32,
-                        _ => unsafe {unreachable_unchecked()}
+                        _ => unreachable!()
                     }
                 },
                 PieceType::Cannon => 4.5f32,
-                PieceType::Rook => 9f32,
+                PieceType::Rook => {
+                    match piece.loc.y() {
+                        0 => 9f32,
+                        1..=9 => 8.5f32,
+                        _ => unreachable!()
+                    }
+                },
                 PieceType::King => {foundBlack = true; 0f32} // we handle this differently
             }
         }
