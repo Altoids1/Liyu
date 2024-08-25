@@ -9,6 +9,8 @@ mod test;
 mod engine;
 mod args;
 
+use board::packedmove::{PackedCoord, PackedMove};
+
 use crate::args::parseArgs;
 
 /// An error handling layer above write! that generically handles all the Result<>s floating around.
@@ -50,7 +52,8 @@ fn main() {
             "h" | "H" | "help" | "HELP" => {
                 say!("Available commands:\n");
                 say!("'fen [FenString]' - loads in a new position from a valid FEN string.\n");
-                say!("'eval [Depth=3]' - returns the current evaluation of the position.\n");
+                say!("'eval [Depth=6]' - returns the current evaluation of the position.\n");
+                say!("'move [Move]' - plays the given move onto the last saved board\n");
                 say!("'display' - displays an ASCII depiction of the current board.\n");
                 say!("'quit' - exits the program.");
             }
@@ -63,7 +66,7 @@ fn main() {
             "eval" | "EVAL" => {
                 let depth : i32;
                 match words.len() {
-                    1 => depth = 3,
+                    1 => depth = 6,
                     2 => {
                         let cmd = words[1].parse::<i32>();
                         if cmd.is_err() {
@@ -78,6 +81,35 @@ fn main() {
                     }
                 }
                 say!("Current evaluation: {}",engine::Engine::evalToDepth(&boardPosition, depth));
+            }
+            "move" | "MOVE" => {
+                match words.len() {
+                    1 => {say!("No move given to the 'move' command");},
+                    2 => {
+                        // Expecting to move to be in the pattern:
+                        // a1b1
+                        let moveStr = words[1];
+                        if moveStr.len() != 4 {
+                            say!("Move is invalid or in an unimplemented format");
+                            continue;
+                        }
+
+                        let startCoord = PackedCoord::new_from_usize(
+                            (moveStr.bytes().nth(1).unwrap() - b'1').into(),
+                            (moveStr.bytes().nth(0).unwrap() - b'a').into()
+                        );
+                        let endCoord = PackedCoord::new_from_usize(
+                            (moveStr.bytes().nth(3).unwrap() - b'1').into(),
+                            (moveStr.bytes().nth(2).unwrap() - b'a').into()
+                        );
+
+                        let packedMove = PackedMove::new_from_packed(startCoord, endCoord);
+                        say!("Move {} accepted.",packedMove);
+                        boardPosition = boardPosition.branch(packedMove);
+                        
+                    },
+                    _ => {say!("Too many arguments given to 'move' command");}
+                }
             }
             "d" | "D" | "display" | "DISPLAY" => {
                 boardPosition.Display();
