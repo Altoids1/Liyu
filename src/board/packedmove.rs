@@ -18,6 +18,7 @@ impl PackedMove {
             data : 0b1111_1111_1111_1111u16
         };
     }
+    #[allow(dead_code)]
     pub const fn new_from_Coords(movePair : (Coord,Coord)) -> Self {
         let mut datum : u16 = 0;
         datum |= ((movePair.0.0 as u16) & 0b1111) << 12;

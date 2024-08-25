@@ -279,7 +279,7 @@ impl BoardState {
                     1..=2 => 2f32,
                     _ => unreachable!()
                 },
-                PieceType::Elephant => 2f32,
+                PieceType::Elephant => 2.0f32,
                 PieceType::Horse => {
                     match piece.loc.x() {
                         0 => 3.5f32,
@@ -314,7 +314,7 @@ impl BoardState {
                     7..=8 => 2f32,
                     _ => unreachable!()
                 },
-                PieceType::Elephant => 2f32,
+                PieceType::Elephant => 2.0f32,
                 PieceType::Horse => {
                     match piece.loc.x() {
                         0 => 3.5f32,

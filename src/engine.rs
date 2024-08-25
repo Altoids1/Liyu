@@ -1,6 +1,6 @@
 pub mod score;
 
-use std::{collections::HashMap, cmp::Ordering};
+use std::cmp::Ordering;
 use std::time::Instant;
 use crate::board::BoardState;
 use crate::board::packedmove::PackedMove;
@@ -9,9 +9,6 @@ use self::score::{ScoreF32, RED_WON,BLACK_WON,INVALID_POS};
 
 pub struct Engine
 {
-    ///This is used to help Liyu remember what moves she took. <br/>
-    ///Key is the score of this permutation, value is the moves it took to get there
-    bestCache : HashMap<ScoreF32,Vec<PackedMove>>,
     nodeCount: i32,
     recentMoveList : Vec<PackedMove>, // While we do use Vec here, it is definitely preferable to allocate the singular time.
     startStateIsRed : bool,
@@ -20,7 +17,6 @@ pub struct Engine
 impl Engine {
     fn new() -> Self {
         return Self {
-            bestCache : Default::default(),
             nodeCount : 0,
             recentMoveList : Default::default(),
             startStateIsRed : Default::default()
@@ -29,20 +25,16 @@ impl Engine {
     pub fn evalToDepth(startState : &BoardState, depth : i32) -> ScoreF32 {
         let mut engine : Self = Engine::new();
         let now = Instant::now();
-        engine.recentMoveList = vec![PackedMove::new(); depth as usize];
-        engine.startStateIsRed = startState.isRedTurn;
-        assert_eq!(engine.recentMoveList.len(),depth as usize);
-        let ret = engine._eval_first(startState.to_owned(),depth);
-        print!("Engine evaluated {} nodes ({} nodes/sec)\n",engine.nodeCount, (engine.nodeCount as f32) / now.elapsed().as_secs_f32());
-        if engine.bestCache.is_empty() {
-            println!("No moves were available!");
-        } else {
+        let mut ret : ScoreF32 = ScoreF32::new(0.0f32);
+        for i in 1..=depth {
+            engine.recentMoveList.push(PackedMove::new());
+            if i % 2 != depth % 2 {continue;}
+            engine.startStateIsRed = startState.isRedTurn;
+            assert_eq!(engine.recentMoveList.len(),i as usize);
+            ret = engine._eval_first(startState.to_owned(),i);
+            print!("[{}] Engine evaluated {} nodes ({} nodes/sec)\n", i, engine.nodeCount, (engine.nodeCount as f32) / now.elapsed().as_secs_f32());
             //println!("{} move sets recorded",engine.bestCache.len());
-            print!("Moves: ");
-            for goodMove in engine.bestCache[&ret].iter() {
-                print!(" {} ",goodMove);
-            }
-            print!("\n");
+            println!("Preferred move: {}",engine.recentMoveList[0]);
         }
         return ret;
     }
@@ -127,12 +119,6 @@ impl Engine {
         self.recentMoveList[(len - depth) as usize] = packedMove;
     }
 
-    fn cacheMoveOrder(&mut self, score : ScoreF32) {
-        if !self.bestCache.contains_key(&score) { // Bad to double-hash but it does avoid a clone that WOULD happen with or_insert()
-            self.bestCache.insert(score, self.recentMoveList.clone());
-        }
-    }
-
     fn _eval_first(&mut self, state : BoardState, depth : i32) -> ScoreF32 {
         return self._eval(state,depth, &INVALID_POS, &INVALID_POS);
     }
@@ -140,8 +126,6 @@ impl Engine {
     fn _eval(&mut self, state : BoardState, depth : i32, blackBestAbove : &ScoreF32, redBestAbove : &ScoreF32) -> ScoreF32 {
         if depth == 0 {
             let val = state.getValue();
-            //println!("{}",val);
-            self.cacheMoveOrder(val);
             return val;
         }
 
@@ -165,11 +149,18 @@ impl Engine {
         let inCheck = state.isInCheck();
 
         moves.sort_unstable_by(|a,b| { // Awkward to wrap this function call in a closure but whaaatever
+            if *a == self.recentMoveList[0] {
+                return Ordering::Less;
+            }
+            if *b == self.recentMoveList[0] {
+                return Ordering::Greater;
+            }
             Self::sort_moves(&state, inCheck, a, b)
         });
 
         let mut foundValidMove : bool = false;
         let mut ourBest : ScoreF32;
+        let mut ourBestMove : PackedMove = PackedMove::new();
         if state.isRedTurn {
             ourBest = BLACK_WON;
         } else {
@@ -181,7 +172,6 @@ impl Engine {
             //debug_assert!(here.1 < 10);
             let newBoard = state.branch(packedMove); // apply it to the board
             self.nodeCount += 1;
-            self.recordRecentMove(packedMove, depth);
             let moveScore : ScoreF32;
             if !newBoard.hasKing() {
                 if state.isRedTurn {
@@ -189,7 +179,6 @@ impl Engine {
                 } else {
                     moveScore = BLACK_WON;
                 }
-                self.cacheMoveOrder(moveScore);
             }
             else {
                 if state.isRedTurn {
@@ -206,9 +195,6 @@ impl Engine {
             }
             
             if state.isRedTurn { // if current player is red
-                if moveScore == score::RED_WON { // and this move just wins
-                    return RED_WON; // this is the move
-                }
                 if moveScore > ourBest { // if this move is better than the old best
                     if moveScore > *blackBestAbove { 
                         //If this results in a position so good that black should've just prevented it from happening
@@ -217,12 +203,13 @@ impl Engine {
                         return *blackBestAbove;
                     }
                     ourBest = moveScore; // cool :)
+                    ourBestMove = packedMove;
+                }
+                if moveScore == score::RED_WON { // if this move just wins then we're done
+                    break;
                 }
                 
             } else { // Current player is black
-                if moveScore == score::BLACK_WON {
-                    return BLACK_WON;
-                }
                 if moveScore < ourBest {
                     if moveScore < *redBestAbove { 
                         //If this results in a position so bad that red should've just prevented it from happening
@@ -231,18 +218,20 @@ impl Engine {
                         return *redBestAbove;
                     }
                     ourBest = moveScore;
+                    ourBestMove = packedMove;
+                }
+                if moveScore == score::BLACK_WON {
+                    break;
                 }
             }
         }
+        self.recordRecentMove(ourBestMove, depth);
         if !foundValidMove { // No valid moves means we're checkmated or stalemated, probably
             if state.isRedTurn {
-                self.cacheMoveOrder(BLACK_WON);
                 return score::BLACK_WON;
             }
-            self.cacheMoveOrder(BLACK_WON);
             return score::RED_WON;
         }
-        
         return ourBest;
     }
 }
